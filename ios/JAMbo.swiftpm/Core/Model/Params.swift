@@ -476,7 +476,8 @@ public enum Params {
             },
         ],
         [
-            smooth("od.drive", "Drive", 0, 100, 26, Fmt.pct),
+            // Подпись Amount (18.11, решение пользователя): на дорожке Drive — посыл, здесь — сила искажения.
+            smooth("od.drive", "Amount", 0, 100, 26, Fmt.pct),
             stepped("od.type", "Drive Type", ["Soft", "Hard", "Tube", "Fuzz", "Fold", "Crush"]),
             smooth("od.tone", "Drive Tone", 0, 100, 50, Fmt.pct),
             smooth("od.lowcut", "Drive Low Cut", 20, 1000, 20, exp: true) { v in v <= driveLowCutOff ? "OFF" : Fmt.hz(v) },
