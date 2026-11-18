@@ -84,8 +84,4 @@ extension AppModel {
         midiLearn.pads[side] = o
         midi.sendSysEx(JamboPad.midiOut(thru: o.thru, controls: o.controls), to: padOutputs(side))
     }
-        let ms: MidiSettings = settings.midi
-        if !ms.isOn(JamboPad().name) { return }
-        midi.sendSysEx(JamboPad.midiOut(thru: ms.padThru, controls: ms.padControls), to: controllerOutputs(JamboPad()))
-    }
 }
