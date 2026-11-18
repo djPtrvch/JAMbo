@@ -6,7 +6,7 @@ enum MidiTab: String, CaseIterable {
     case mapping = "MAPPING"
 }
 
-/// Бутерброд → MIDI (S13a, как ui/midi.ts веба): стрелка назад и «MIDI», вкладки, ниже — с чертой — открытая вкладка.
+/// Бутерброд → MIDI (S13a): стрелка назад и «MIDI», вкладки, ниже — с чертой — открытая вкладка.
 struct MidiMenuPage: View {
     let model: AppModel
     let back: () -> Void

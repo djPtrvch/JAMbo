@@ -1,6 +1,6 @@
 import Foundation
 
-// Коэффициенты биквада полосы EQ — как Biquad::Set*Params в Blink/WebKit (формулы Web Audio: peaking, lowshelf и
+// Коэффициенты биквада полосы EQ (формулы RBJ: peaking, lowshelf и
 // highshelf с S = 1, highpass и lowpass с Q в dB, notch, bandpass — фильтр детектора Dynamic, тип
 // EqDetectors.bandpass; частота — доля Найквиста, края 0 и 1 — как там же),
 // и АЧХ полосы для кривой EQ (как getFrequencyResponse; каскад — сумма ступеней).

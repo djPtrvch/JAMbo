@@ -1,4 +1,4 @@
-// Модель проекта (как Doc и Track в src/state.ts веба; имена полей те же — для импорта .jambo в S11).
+// Модель проекта (имена полей — ключи файла проекта).
 // Значения (struct): копия — снимок для UNDO.
 
 /// Назначение источника модуляции на ручку: lfo 1–3 — LFO1–3, 4 — ENV; amount −1…+1 (доля хода ручки).
@@ -55,7 +55,7 @@ public struct TrackMore: Equatable, Sendable {
     public var morphOrig: [String: Double] = [:]
     public var morphOrigAssign: [String: ModAssign?] = [:]
     public var morphEdited: Bool = false
-    /// EQ дорожки (doc.eqs[i] веба): один на все клипы, переезжает и копируется вместе с дорожкой.
+    /// EQ дорожки: один на все клипы, переезжает и копируется вместе с дорожкой.
     public var eq: Eq = Eq()
     /// MIDI дорожки: вход нот и выход (TrackMidi).
     public var midi: TrackMidi = TrackMidi()
@@ -87,7 +87,7 @@ public struct Track: Codable, Equatable, Sendable {
     /// Остановлена в сетке паттернов.
     public var stopped: Bool = false
     public var vol: Double = Params.volDef
-    /// Переход MIX (S10, t.home веба): свой звук дорожки, пока она играет клип PREV со звуком старой дорожки.
+    /// Переход MIX (S10): свой звук дорожки, пока она играет клип PREV со звуком старой дорожки.
     /// Хранится «в коробке» (массив из 0 или 1 элемента, копия при записи; объём сборки, 8.11).
     var homeBox: [TrackSound] = []
     public var home: TrackSound? {
@@ -274,7 +274,7 @@ public struct Clip: Codable, Equatable, Sendable {
     public var scale: Int?
     public var root: Int?
     public var fx: [String: Double]?
-    /// Переход MIX (S10, src веба): только у клипа строки PREV — звук старой дорожки (старый проект).
+    /// Переход MIX (S10): только у клипа строки PREV — звук старой дорожки (старый проект).
     /// Хранится «в коробке» (массив из 0 или 1 элемента, копия при записи): копии клипа не тянут звук по значению
     /// (объём сборки, 8.11).
     var srcBox: [TrackSound] = []
@@ -318,7 +318,7 @@ public struct Clip: Codable, Equatable, Sendable {
         return Swift.min(Swift.max(0, playFrom), to)...to
     }
 
-    /// Шагов на странице p у прохода, который начинается со страницы from (как pageLen веба).
+    /// Шагов на странице p у прохода, который начинается со страницы from.
     public func pageLen(_ p: Int, from: Int) -> Int {
         let n = Params.stepsPerPage
         if length > from * n { return Swift.max(0, Swift.min(n, length - p * n)) }
@@ -376,7 +376,7 @@ public struct ProjectMore: Equatable, Sendable {
     public var notice: String? = nil
     /// Назначения LFO/ENV на ручки FX (источник — LFO/ENV дорожки track).
     public var fxAssigns: [String: ModAssign] = [:]
-    /// Мастер (как doc.master веба, без убранных в Swift параметров — MasterChain.ids): RELEASE AUTO — значение
+    /// Мастер (без убранных в Swift параметров — MasterChain.ids): RELEASE AUTO — значение
     /// MasterChain.autoValue; BYPASS модулей — отдельно.
     public var master: [String: Double] = MasterChain.defaultValues()
     public var satBypass: Bool = false
@@ -387,8 +387,8 @@ public struct ProjectMore: Equatable, Sendable {
     public var outVol: Double = 0
     /// EQ мастера (doc.masterEq) — первый в цепочке мастера.
     public var masterEq: Eq = Eq()
-    /// Свои последовательности MIX и MST (doc.chanSeqs веба): страницы и p-lock шагов (нот нет) — у MIX громкости
-    /// дорожек (mix.vol1…16), у MST — параметры мастера (ручки MST без p-lock — ставить нечего, как в вебе).
+    /// Свои последовательности MIX и MST: страницы и p-lock шагов (нот нет) — у MIX громкости
+    /// дорожек (mix.vol1…16), у MST — параметры мастера (ручки MST без p-lock — ставить нечего).
     /// Один клип; играют с PLAY с первого шага, без сетки паттернов.
     public var chanSeqs: [Track] = [Track.channel("MIX"), Track.channel("MST")]
     /// Строки сетки паттернов: имена и повторы.

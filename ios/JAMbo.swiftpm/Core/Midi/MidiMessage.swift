@@ -29,7 +29,7 @@ public struct MidiMessage: Equatable, Sendable {
         self.data2 = data2
     }
 
-    /// Реального времени (клок, Start, Continue, Stop) — идут мимо маппингов (как в вебе).
+    /// Реального времени (клок, Start, Continue, Stop) — идут мимо маппингов.
     public var isRealtime: Bool {
         return kind == .clock || kind == .start || kind == .cont || kind == .stop
     }

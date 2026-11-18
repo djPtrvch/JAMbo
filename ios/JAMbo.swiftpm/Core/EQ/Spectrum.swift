@@ -1,6 +1,6 @@
 import Foundation
 
-// Спектры EQ (как AnalyserNode веба: моно (L + R)/2, окно Блэкмана, FFT 4096, |X|/N, сглаживание 0,6 между
+// Спектры EQ (моно (L + R)/2, окно Блэкмана, FFT 4096, |X|/N, сглаживание 0,6 между
 // чтениями, dB). Колбэк пишет сигнал в кольцевые буферы точек съёма (SpectrumTap), интерфейс читает последние
 // 4096 отсчётов и считает спектр (SpectrumAnalyzer) — вне колбэка. Точки съёма (Spectra): до и после EQ показанного
 // канала (или коррекции наушников), после EQ сравниваемой дорожки; канал — атомарное значение (−1 — съём выключен).
@@ -98,7 +98,7 @@ public final class Spectra: @unchecked Sendable {
     }
 }
 
-/// Спектр как getFloatFrequencyData у AnalyserNode (fftSize 4096, smoothingTimeConstant 0,6): 2048 бинов, dB.
+/// Спектр (FFT 4096, сглаживание между кадрами 0,6): 2048 бинов, dB.
 public final class SpectrumAnalyzer {
     public static let size = 4096
     public static let bins = size / 2
@@ -116,7 +116,7 @@ public final class SpectrumAnalyzer {
     public init() {
         let n = SpectrumAnalyzer.size
         window = .allocate(capacity: n)
-        // Окно Блэкмана (alpha 0,16), как в спецификации AnalyserNode.
+        // Окно Блэкмана (alpha 0,16).
         for i in 0..<n {
             let x: Double = 2 * Double.pi * Double(i) / Double(n)
             window[i] = Float(0.42 - 0.5 * cos(x) + 0.08 * cos(2 * x))

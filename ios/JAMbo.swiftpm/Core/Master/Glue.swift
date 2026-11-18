@@ -1,7 +1,7 @@
 import Foundation
 
-// Компрессор мастера «glue» — перенос public/glue-worklet.js (решение пользователя S5a: без RANGE, HOLD, LINK и AUDIT —
-// RANGE OFF, HOLD 0, LINK 100 %, как по умолчанию в вебе: один детектор по максимуму L и R, звук тот же).
+// Компрессор мастера «glue» (решение пользователя S5a: без RANGE, HOLD, LINK и AUDIT —
+// RANGE OFF, HOLD 0, LINK 100 %: один детектор по максимуму L и R, звук тот же).
 // Стерео, нулевая задержка. Детектор: 60 % пика + 40 % RMS (10 мс, приведён к пику синуса) по сигналу после SC HPF
 // (Баттерворт 2-го порядка; 20 Гц — обход). Gain computer в dB: колено KNEE, наклон 1 − 1/RATIO (1…20).
 // GR сглаживается в dB: атака ATTACK, релиз RELEASE или AUTO (быстрый 60 мс и медленный 1,2 с).
@@ -92,7 +92,7 @@ public final class MasterGlue {
     }
 
     /// Статическая кривая (окно компрессора, TRANSFER): GR в dB ≥ 0 на уровне детектора level — та же формула, что
-    /// в process (staticGr веба без RANGE).
+    /// в process.
     public static func staticGr(_ level: Double, thr: Double, ratio: Double, knee: Double) -> Double {
         let slope: Double = 1 - 1 / Swift.max(1, Swift.min(20, ratio))
         let k: Double = Swift.max(0, Swift.min(24, knee))

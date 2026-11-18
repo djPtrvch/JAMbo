@@ -1,6 +1,6 @@
-// Движки синта (как SYNTH_ENGINES, synthKey, synthEngine в src/params.ts веба): звук дорожки или шага «mi:<n>».
-// Свои движки KICK, ANALOG, FM, WTABLE (16–19), ударные и SUB (20–24), TEXTURE и GRANULAR (25, 26); движков
-// Mutable Instruments (0–15) нет.
+// Движки синта: звук дорожки или шага «mi:<n>».
+// Свои движки KICK, ANALOG, FM, WTABLE (16–19), ударные и SUB (20–24), TEXTURE и GRANULAR (25, 26); номера
+// 0–15 не заняты.
 
 /// Движок: номер (ключ звука mi:<n>), короткое имя (меню), полное (окно синта), подписи ручек 1.1–1.4 и пункты
 /// ступенчатых ручек (пустой список — плавная). decay — затухает сам (KICK): огибающая дорожки только с атакой.
@@ -24,7 +24,7 @@ public enum SynthEngines {
     public static let knobIds: [String] = ["harm", "timbre", "morph", "p4"]
     static let waves: [String] = ["Sine", "Triangle", "Saw", "Square"]
 
-    /// Свои движки JAMbo (Core/Jambo). Номера 0–15 (движки Mutable Instruments) не заняты: такие звуки — пустые.
+    /// Свои движки JAMbo (Core/Jambo). Номера 0–15 не заняты: такие звуки — пустые.
     public static let all: [SynthEngine] = [
         // KICK — бочка (ключ звука прежний, mi:16; высота — ручкой PITCH, монофонична).
         SynthEngine(id: 16, name: "KICK", full: "Kick", knobs: ["pitch", "sweep", "drive", "click"],
@@ -77,7 +77,7 @@ public enum SynthEngines {
     }
 }
 
-/// Ключ звука синта: «mi:<n>» — движок n (как synthKey / synthEngine веба).
+/// Ключ звука синта: «mi:<n>» — движок n.
 public enum SynthKey {
     public static func key(_ engine: Int) -> String { return "mi:\(engine)" }
 
@@ -87,14 +87,14 @@ public enum SynthKey {
         return n
     }
 
-    /// Звук синта, движка которого нет (mi:0…mi:15 — Mutable Instruments): загружается пустым.
+    /// Звук синта, движка которого нет в таблице (mi:0…mi:15 и любой другой незанятый номер): загружается пустым.
     public static func isRemoved(_ key: String) -> Bool {
         return key.hasPrefix("mi:") && engine(key) == nil
     }
 }
 
 extension Track {
-    /// Синт на дорожку (setTrackSynth веба): звук дорожки — «mi:<n>»; ручки 1.1–1.4 остаются, кроме своих начальных
+    /// Синт на дорожку: звук дорожки — «mi:<n>»; ручки 1.1–1.4 остаются, кроме своих начальных
     /// у движка (ANALOG — синусы без DETUNE, MIX 50 %) при переходе с другого звука; Decay больше предела движка
     /// (KICK — 1000 мс) — к пределу.
     /// defaults — свои значения ручек по умолчанию: при смене звука ручки движка встают на них (поверх initKnobs).

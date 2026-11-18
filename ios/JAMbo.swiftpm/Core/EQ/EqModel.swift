@@ -1,6 +1,6 @@
 import Foundation
 
-// EQ канала (как Eq и EqBand в src/state.ts, константы — EQ_* в params.ts): 8 мест под полосы (nil — полосы нет).
+// EQ канала: 8 мест под полосы (nil — полосы нет).
 // EQ дорожки — Track.eq (один на все её клипы, переезжает вместе с дорожкой), EQ мастера — Project.masterEq.
 // M/S — S7a, Dynamic — S7b (источник dyn: −1 OFF, 0 SELF, n — дорожка n, 1…; номер следует за дорожкой).
 
@@ -44,16 +44,16 @@ public struct Eq: Codable, Equatable, Sendable {
 }
 
 public enum EqSpec {
-    /// Типы полос (как EQ_TYPES веба; индексы хранятся в проектах).
+    /// Типы полос (индексы хранятся в проектах).
     public static let types = ["Bell", "Low Shelf", "High Shelf", "Low Cut", "High Cut", "Notch"]
     public static let bell = 0, lowShelf = 1, highShelf = 2, lowCut = 3, highCut = 4, notch = 5
     /// Порядок типов в меню и в поле TYPE (решение пользователя): low cut, high cut, bell, затем остальные.
     public static let typeOrder = [3, 4, 0, 1, 2, 5]
     /// Крутизна среза, dB/окт (каскад из 1, 2 или 4 биквадов).
     public static let slopes = [12, 24, 48]
-    /// Режимы M/S (как EQ_MS веба): STEREO — оба канала, MID — только (L+R)/2, SIDE — только (L−R)/2.
+    /// Режимы M/S: STEREO — оба канала, MID — только (L+R)/2, SIDE — только (L−R)/2.
     public static let msModes = ["STEREO", "MID", "SIDE"]
-    /// Dynamic (как EQ_DYN_* веба): порог −60…0 dBFS, сдвиг −18…+18 dB.
+    /// Dynamic: порог −60…0 dBFS, сдвиг −18…+18 dB.
     public static let dynThrDef: Double = -24
     public static let dynThrMin: Double = -60
     public static let dynRangeDef: Double = -6
@@ -71,7 +71,7 @@ public enum EqSpec {
     /// Усиление не применяется к cut и notch.
     public static func hasGain(_ type: Int) -> Bool { return type <= highShelf }
 
-    /// Полоса динамическая (как eqDynOn веба): bell или shelf с источником.
+    /// Полоса динамическая: bell или shelf с источником.
     public static func dynOn(_ b: EqBand) -> Bool { return hasGain(b.type) && b.dyn >= 0 }
 
     /// Число биквадов в каскаде полосы.
@@ -79,7 +79,7 @@ public enum EqSpec {
         return isCut(b.type) ? slopes[Swift.max(0, Swift.min(b.slope, slopes.count - 1))] / 12 : 1
     }
 
-    /// Q для фильтра: у low cut / high cut, как в Web Audio, — в dB (резонанс).
+    /// Q для фильтра: у low cut / high cut — в dB (резонанс).
     public static func filterQ(_ b: EqBand) -> Double {
         return isCut(b.type) ? 20 * log10(b.q) : b.q
     }
@@ -153,7 +153,7 @@ public enum EqSpec {
     }
 }
 
-// Правки EQ (как addEqBand, setEqBand… в state.ts). Канал: дорожка 0… или EqSpec.masterChannel.
+// Правки EQ. Канал: дорожка 0… или EqSpec.masterChannel.
 extension Project {
     public func eq(_ ch: Int) -> Eq {
         if ch == EqSpec.masterChannel { return masterEq }

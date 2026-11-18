@@ -12,7 +12,7 @@ public final class EqListen: @unchecked Sendable {
     public static let bandpass = 0, lowpass = 1, highpass = 2
     static let fadeFrames: Float = 480
     static let tau: Double = 0.02
-    /// Q ФНЧ и ФВЧ в dB (как Q у lowpass/highpass Web Audio): 1/√2.
+    /// Q ФНЧ и ФВЧ в dB: 1/√2.
     static let butterQ: Double = -3.0102999566398116
     static let maxLanes = TrackEqs.lanes
 

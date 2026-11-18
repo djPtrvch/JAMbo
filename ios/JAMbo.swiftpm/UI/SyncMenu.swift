@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Бутерброд → SYNC (S13e, как ui/sync.ts веба): GENERAL — SYNC QUANTUM; MIDI CLOCK — вкл./выкл., SEND / RECEIVE,
+/// Бутерброд → SYNC (S13e): GENERAL — SYNC QUANTUM; MIDI CLOCK — вкл./выкл., SEND / RECEIVE,
 /// выход или вход клока, SYNC START/STOP, MIDI OFFSET. Раздел ABLETON LINK скрыт до этапа 9 (S14, перед App Store: неработающей
 /// функции на виду быть не должно); настройки Link по-прежнему хранятся в SyncSettings.
 struct SyncMenuPage: View {

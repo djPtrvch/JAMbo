@@ -274,7 +274,7 @@ final class GranularVoice {
         gAt[k] = -Int(at)
         let gg = gG + k * 4
         if src.channels > 1 && src.right != nil {
-            // Баланс (StereoPanner веба со стерео-входом).
+            // Баланс стерео-входа.
             let x: Double = (pan <= 0 ? pan + 1 : pan) * Double.pi / 2
             gg[0] = pan <= 0 ? 1 : cos(x)
             gg[1] = pan <= 0 ? cos(x) : 0

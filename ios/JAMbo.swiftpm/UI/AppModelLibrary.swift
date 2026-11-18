@@ -1,6 +1,6 @@
 import Foundation
 
-// Библиотека (S11b, как ui/browser.ts веба): браузер на месте центра — из меню звука (LOAD, SAVE пресета, TABLE)
+// Библиотека (S11b): браузер на месте центра — из меню звука (LOAD, SAVE пресета, TABLE)
 // и редактора сэмпла (LOAD, SAVE сэмпла). Тап по сэмплу или пресету — звук дорожки (в её папке остаётся только он),
 // удержание — выбор нескольких (LOAD — все в папку дорожки), для зажатых шагов — их звук. IMPORT — аудио, .jambopreset и
 // .zip из «Файлов» в открытую папку; EXPORT — файл или .zip (S11c). SAVE HERE — пресет синта или сэмпл в открытую
@@ -308,7 +308,7 @@ extension AppModel {
                 p.tracks[i].setFolder(items)
                 if clear { p.tracks[i].clearSampleLocks() }
             }
-            // LOAD выбора закрывает браузер (решение пользователя; в вебе остаётся открытым).
+            // LOAD выбора закрывает браузер (решение пользователя).
             self.closeBrowser()
         }
     }
@@ -362,7 +362,7 @@ extension AppModel {
         importing = true
     }
 
-    /// IMPORT в открытую папку (S11c, как importInto веба): аудио, пресеты .jambopreset и архивы .zip (папки
+    /// IMPORT в открытую папку (S11c): аудио, пресеты .jambopreset и архивы .zip (папки
     /// восстанавливаются); прочее — пропускается.
     func libImport(_ urls: [URL]) {
         if tableMode {

@@ -19,7 +19,7 @@ enum MasterInputTarget: Equatable {
     case rename(Int)
 }
 
-/// Окна модулей мастера SAT, COMP, CLIP, LIM (S6, как openMasterWindow веба): на месте центра, справа измеритель;
+/// Окна модулей мастера SAT, COMP, CLIP, LIM (S6): на месте центра, справа измеритель;
 /// кнопки мастера (тап без SHIFT) и блоки индикации COMP, CLIP, LIM. PATTERNS, EQ, редактор сэмпла и окно модуля
 /// не открыты одновременно; выход из MST окно не закрывает (скрыто до возврата), закрывает двойной тап по MST (17.11). Параметры — те же, что у ручек MST.
 extension AppModel {
@@ -83,7 +83,7 @@ extension AppModel {
         edit { pr in pr.master[p.id] = next }
     }
 
-    /// Параметры модуля m в строке окна (порядок веба).
+    /// Параметры модуля m в строке окна (по порядку полей).
     static func masterFields(_ m: Int) -> [ParamDef] {
         return MasterPresetBook.ids(m).compactMap { Params.byId[$0] }
     }

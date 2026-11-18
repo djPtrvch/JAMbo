@@ -1,6 +1,6 @@
 import Foundation
 
-/// Щелчок метронома (как clickAt веба): синус 1000 Гц (акцент — 1600), подъём за 2 мс, спад до −80 dB к 50 мс.
+/// Щелчок метронома: синус 1000 Гц (акцент — 1600), подъём за 2 мс, спад до −80 dB к 50 мс.
 public struct Click {
     private var active = false
     private var start: Int64 = 0

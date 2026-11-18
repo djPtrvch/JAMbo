@@ -1,13 +1,13 @@
 import Foundation
 
-// Delay — перенос public/delay-worklet.js 1:1: ленточный стерео-дилей, шина отдаёт только эхо (wet).
+// Delay: ленточный стерео-дилей, шина отдаёт только эхо (wet).
 // Две кольцевые линии L и R (чтение — кубический Эрмит). Время L = TIME, R = TIME · (1 + o); время каждой линии
 // скользит к цели (однополюсно, 80 мс, не быстрее 0,75 отсчёта на отсчёт) — смена TIME даёт питч-нырок без щелчков.
 // SPREAD: до 50 % разносит время правой линии (o), дальше — перекрёстная связь c до классического ping-pong.
 // Выход линий: HP 60 Гц → FILTER (LP и HP — SVF TPT, у центра подмешиваются плавно) → tanh(k·x)/k → в выход и
 // в обратную связь. Модуляция «лента»: wow (случайное блуждание 0,5 Гц) и flutter (7 Гц), у каждой линии свои фазы.
 // Параметры — k-rate (на блок): time (с), feedback (0…1), filter (−1…1), spread (0…1); FEEDBACK, FILTER, SPREAD
-// сглаживаются за 20 мс. Состояние и расчёт — Double, как JS; линии — Float (Float32Array).
+// сглаживаются за 20 мс. Состояние и расчёт — Double; линии — Float.
 // Горячий цикл — по правилам отладочной сборки (ios/CLAUDE.md): состояние в локальных переменных, без вызовов
 // из других файлов на отсчёте.
 
@@ -64,7 +64,7 @@ public final class FxDelay {
     var flS: (Double, Double) = (0, 0)
     var flC: (Double, Double) = (0, 0)
 
-    /// maxTime — наибольшее время, с (1 такт при 40 BPM — 6 с); seed — генератор модуляции (как Math.random веба).
+    /// maxTime — наибольшее время, с (1 такт при 40 BPM — 6 с); seed — генератор модуляции.
     public init(sampleRate: Double, maxTime: Double = 6, seed: UInt32) {
         sr = sampleRate
         self.maxTime = maxTime
@@ -146,7 +146,7 @@ public final class FxDelay {
         sHp = (0, 0, 0, 0)
     }
 
-    /// Блок n отсчётов: вход (nil — тишина) → эхо в outL/outR (перезаписывает). Параметры — как AudioParam (Float).
+    /// Блок n отсчётов: вход (nil — тишина) → эхо в outL/outR (перезаписывает). Параметры — Float.
     public func process(inL: UnsafePointer<Float>?, inR: UnsafePointer<Float>?, outL: UnsafeMutablePointer<Float>,
                         outR: UnsafeMutablePointer<Float>, frames n: Int, time: Float, feedback: Float, filter fIn: Float,
                         spread spIn: Float) {

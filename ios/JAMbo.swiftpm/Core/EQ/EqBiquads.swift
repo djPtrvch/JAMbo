@@ -1,6 +1,6 @@
 import Foundation
 
-// Ступени биквада EqUnit (Direct Form I, как Biquad::Process в Blink/WebKit): с постоянными коэффициентами,
+// Ступени биквада EqUnit (Direct Form I): с постоянными коэффициентами,
 // с линейно меняющимися и с коэффициентами на каждый отсчёт (динамическая полоса).
 
 extension EqUnit {

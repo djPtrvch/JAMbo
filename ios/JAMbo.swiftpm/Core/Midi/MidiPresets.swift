@@ -1,6 +1,6 @@
 import Foundation
 
-// Пресеты маппингов (S13c, строка Preset окна MIDI MAP, как midiPresets веба): набор маппингов под контроллер.
+// Пресеты маппингов (S13c, строка Preset окна MIDI MAP): набор маппингов под контроллер.
 // Хранятся отдельно от настроек (UserDefaults), общие для проектов. Встроенного пресета нет (решение пользователя).
 
 public struct MidiPreset: Codable, Equatable, Sendable {

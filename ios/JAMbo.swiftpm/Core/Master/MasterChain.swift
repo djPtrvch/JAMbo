@@ -1,9 +1,9 @@
 import Foundation
 
-// Цепочка мастера (как engine.ts веба): сумма дорожек и эффектов → EQ мастера → сатуратор → компрессор →
+// Цепочка мастера: сумма дорожек и эффектов → EQ мастера → сатуратор → компрессор →
 // клиппер → лимитер → громкость выхода. Параметры — плоский массив Double в порядке MasterChain.Index
-// (колбэк не читает Swift-коллекции): из снимка звука (Project.master) или из самотеста. BYPASS сатуратора — MIX 0
-// (как sendDynamics веба), у остальных — свой кроссфейд 10 мс. Всё в колбэке: буферы выделены при создании.
+// (колбэк не читает Swift-коллекции): из снимка звука (Project.master) или из самотеста. BYPASS сатуратора — MIX 0,
+// у остальных — свой кроссфейд 10 мс. Всё в колбэке: буферы выделены при создании.
 
 public final class MasterChain {
     /// Номера параметров в массиве значений.
@@ -20,7 +20,7 @@ public final class MasterChain {
         public static let count = 29
     }
 
-    /// Значения по умолчанию (как ручки и поля веба; bypass выключены).
+    /// Значения по умолчанию (bypass выключены).
     public static let defaults: [Double] = [
         0, 0, 0, 100, 20, 0,
         -10, 10, 400, 0, 0, 2, 6, 100, 90, 0,
@@ -29,8 +29,7 @@ public final class MasterChain {
         1, 0,
     ]
 
-    /// Параметры мастера в проекте (id как в вебе) и их номера; RELEASE компрессора и лимитера ≥ autoValue — AUTO
-    /// (как AUTO_VALUE в params.ts).
+    /// Параметры мастера в проекте (id) и их номера; RELEASE компрессора и лимитера ≥ autoValue — AUTO.
     public static let ids: [(id: String, index: Int)] = [
         ("sat.drive", Index.satDrive), ("sat.type", Index.satType), ("sat.tone", Index.satTone),
         ("sat.mix", Index.satMix), ("sat.focus", Index.satFocus),
@@ -43,9 +42,9 @@ public final class MasterChain {
         ("lim.release", Index.limRel), ("lim.guard", Index.limGuard),
     ]
     public static let autoValue: Double = 1e9
-    /// ATTACK компрессора нового проекта — 30 мс (решение пользователя; в вебе 10). Эталоны считаются от defaults веба.
+    /// ATTACK компрессора нового проекта — 30 мс (решение пользователя; эталоны тестов — при 10 мс).
     public static let newAttack: Double = 30
-    /// RELEASE при AUTO (как sendDynamics веба: rel 400, auto true).
+    /// RELEASE при AUTO (rel 400, auto true).
     static let autoRel: Double = 400
 
     public static func defaultValues() -> [String: Double] {

@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Кнопка в стиле веба: скруглённый прямоугольник панели, жирная подпись; горит акцентом, когда active.
+/// Кнопка приложения: скруглённый прямоугольник панели, жирная подпись; горит акцентом, когда active.
 struct InkButton: View {
     let title: String
     var active: Bool = false
@@ -55,7 +55,7 @@ struct BurgerButton: View {
     }
 }
 
-/// Заголовок раздела меню (menu-head в вебе: 12 px, жирный, разрядка).
+/// Заголовок раздела меню (menu-head: 12 px, жирный, разрядка).
 struct MenuHead: View {
     let title: String
 

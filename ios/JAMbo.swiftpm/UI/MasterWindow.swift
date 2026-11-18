@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Окно модуля мастера (S6, на общей основе, как masterwin.ts веба): вверху строка кнопок (barH, как стрелки над миниатюрами) — название (тап — меню
+/// Окно модуля мастера (S6, на общей основе): вверху строка кнопок (barH, как стрелки над миниатюрами) — название (тап — меню
 /// SAT, COMP, CLIP, LIM), поля параметров, PRESETS, BYPASS, ✕; ниже — дисплей модуля. Нижней панели нет.
 struct MasterWindowView: View {
     let model: AppModel
@@ -103,7 +103,7 @@ struct MasterWindowView: View {
 }
 
 /// Строка окна модуля: название, поля, UNITY (у CLIP и LIM, в виде поля), PRESETS, BYPASS (у правого края). При BYPASS поля серые (у LIM —
-/// только INPUT и CEILING, как в вебе).
+/// только INPUT и CEILING).
 struct MasterStrip: View {
     let model: AppModel
     let module: Int

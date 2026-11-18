@@ -1,6 +1,6 @@
 import Foundation
 
-// MIDI-маппинг (S13b, как MidiMapping в settings.ts веба): источник (CC или нота на канале) → цель (ручка сетки по
+// MIDI-маппинг (S13b): источник (CC или нота на канале) → цель (ручка сетки по
 // позиции, нажатие ручки — PRESS, кнопка интерфейса по имени). Хранится в настройках (MidiSettings.mappings).
 
 public enum MidiSourceType: String, Codable, Sendable {

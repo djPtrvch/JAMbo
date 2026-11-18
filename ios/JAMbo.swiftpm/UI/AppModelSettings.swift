@@ -1,7 +1,7 @@
 import Foundation
 
-/// Вкладки SETTINGS (S9d; отличия от веба: без SAMPLE RATE и BUFFER SIZE, BACKGROUND и SCALE; APPEARANCE — вкладка;
-/// новые MIX, MORPH, LEVEL — решение пользователя).
+/// Вкладки SETTINGS (S9d; APPEARANCE — вкладка; MIX, MORPH, LEVEL — решение
+/// пользователя).
 /// Порядок (3.11, решение пользователя) — по рядам из трёх: RECORD, SAMPLER, ARRANGE / MORPH, MIX, RANDOM /
 /// LEVEL, DUCK, DEFAULTS / APPEARANCE, AUDIO ENGINE, OUTPUT.
 enum SettingsTab: String, CaseIterable {

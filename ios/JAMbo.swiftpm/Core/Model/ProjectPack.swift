@@ -1,9 +1,9 @@
 import Foundation
 
-// Файл проекта для «Файлов» (.jambo, S11a; как packProject / unpackProject веба, storage.ts):
+// Файл проекта для «Файлов» (.jambo, S11a):
 // 'JMB1', длина заголовка (uint32, старший байт первым), заголовок JSON { format, version, name, doc,
-// samples: [{ key, name, size }] }, затем байты сэмплов подряд. В вебе format 'jambo' (doc — проект веба,
-// сэмплы — исходные файлы), в Swift-версии — 'jambo-swift' (doc — Project, сэмплы — свои .caf).
+// samples: [{ key, name, size }] }, затем байты сэмплов подряд. format — 'jambo-swift' (doc — Project,
+// сэмплы — свои .caf); файл другого формата контейнер читает, но проекта в нём нет.
 
 /// Сэмпл в файле проекта: ключ, имя файла, байты.
 public struct PackSample: Equatable, Sendable {
@@ -18,7 +18,7 @@ public struct PackSample: Equatable, Sendable {
     }
 }
 
-/// Содержимое файла .jambo: doc — JSON проекта как есть (читает ProjectFormat или конвертер веба).
+/// Содержимое файла .jambo: doc — JSON проекта как есть (читает ProjectFormat).
 public struct ProjectPack: Equatable, Sendable {
     public var format: String
     public var version: Int
@@ -27,8 +27,8 @@ public struct ProjectPack: Equatable, Sendable {
     public var samples: [PackSample]
 
     public static let magic: String = "JMB1"
-    /// Формат файла веба.
-    public static let webFormat: String = "jambo"
+    /// Формат файла без поля format (чужой: проекта в нём нет).
+    static let otherFormat: String = "jambo"
 
     public init(format: String, version: Int, name: String, doc: Data, samples: [PackSample]) {
         self.format = format
@@ -82,7 +82,7 @@ public struct ProjectPack: Equatable, Sendable {
               let head = obj as? [String: Any],
               let docObj = head["doc"],
               let doc = try? JSONSerialization.data(withJSONObject: docObj, options: [.fragmentsAllowed]) else { return nil }
-        let format: String = head["format"] as? String ?? webFormat
+        let format: String = head["format"] as? String ?? otherFormat
         let version: Int = number(head["version"]) ?? 1
         let name: String = head["name"] as? String ?? ""
         let list: [Any] = head["samples"] as? [Any] ?? []
@@ -106,7 +106,7 @@ public struct ProjectPack: Equatable, Sendable {
         return nil
     }
 
-    /// Проект Swift-версии из файла (миграция и repair — как у файлов приложения); веб или чужой формат — nil.
+    /// Проект Swift-версии из файла (миграция и repair — как у файлов приложения); чужой формат — nil.
     public func swiftProject() -> Project? {
         if format != ProjectFormat.name { return nil }
         let info = ProjectInfo(id: "", name: name, updated: 0)
@@ -118,8 +118,7 @@ public struct ProjectPack: Equatable, Sendable {
         return ProjectFormat.decode(data)?.doc
     }
 
-    /// Проект из файла: только Swift-версии (перевод файлов веба убран 18.11 — веб был пробной версией, проекты
-    /// перенесены); иначе nil.
+    /// Проект из файла приложения; иначе nil.
     public func project() -> Project? {
         return swiftProject()
     }

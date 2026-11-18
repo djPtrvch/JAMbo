@@ -1,6 +1,6 @@
 import Foundation
 
-// Таблицы движка WTABLE (как src/audio/wavetable.ts веба): встроенные генерируются по спектру кадров (гармоники
+// Таблицы движка WTABLE: встроенные генерируются по спектру кадров (гармоники
 // 1…1023 при кадре 2048); мипмапы по октавам — обратным FFT с обрезкой гармоник (уровень L — гармоники до 1024 >> L),
 // вне аудиопотока. Ключ таблицы дорожки (Track.table): "" — BASIC, "builtin:NAME" — встроенная.
 // Свои таблицы (WAV из библиотеки) — S11.
@@ -18,7 +18,7 @@ public enum WavetableKey {
         return "TABLE"
     }
 
-    /// Своя таблица (S11b4, как userTableKey веба): «wt:<ключ WAV>:<размер кадра>»; ключ — без 's:' веба.
+    /// Своя таблица (S11b4): «wt:<ключ WAV>:<размер кадра>».
     public static func user(_ wav: String, frameSize: Int) -> String { "wt:\(wav):\(frameSize)" }
 
     /// Ключ WAV и размер кадра своей таблицы; иначе nil.
@@ -261,7 +261,7 @@ public final class WtTable: @unchecked Sendable {
         }
     }
 
-    /// Math.round: половина — вверх.
+    /// Округление: половина — вверх.
     static func jsRound(_ x: Double) -> Int { Int((x + 0.5).rounded(.down)) }
 }
 

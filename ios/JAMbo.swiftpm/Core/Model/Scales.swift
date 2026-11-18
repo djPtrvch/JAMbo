@@ -1,4 +1,4 @@
-// Гаммы, виды и варианты аккордов, ноты клавиатуры и аккорды (как SCALES, PROGRESSIONS, scaleNotes, chordOnDegree в вебе).
+// Гаммы, виды и варианты аккордов, ноты клавиатуры и аккорды.
 
 public struct Scale: Sendable {
     public let name: String

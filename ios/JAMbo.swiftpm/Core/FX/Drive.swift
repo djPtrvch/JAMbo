@@ -1,14 +1,14 @@
 import Foundation
 
-// Drive — перенос public/drive-worklet.js 1:1: искажение на шине посыла (только обработанный сигнал), стерео,
+// Drive: искажение на шине посыла (только обработанный сигнал), стерео,
 // каналы независимо. Цепь: вход → LOW CUT (HP 2-го порядка; ≤ 25 Гц — обход, плавно) → · g (10^(36·DRIVE/100 / 20))
-// → 4× оверсэмплинг (oversampler.js) → нелинейность TYPE (SOFT, HARD, TUBE, FUZZ — антипроизводная первого порядка
+// → 4× оверсэмплинг → нелинейность TYPE (SOFT, HARD, TUBE, FUZZ — антипроизводная первого порядка
 // по таблицам; FOLD — среднее sin соседних отсчётов) → коррекция среднего → децимация → фильтр DC (5 Гц)
 // ÷ компенсация громкости → TONE (LP, 500 Гц · 24^(TONE/100)) → выход. CRUSH — без оверсэмплинга: квантование
 // до 12 − 9·D бит и повтор отсчёта 1 + round(15·D²) раз, вход задержан на задержку оверсэмплинга (33).
 // Параметры — k-rate: drive (0–100), type (0–5), tone (0–100), lowcut (Гц); DRIVE — по отсчётам за 20 мс,
 // TONE и LOW CUT — по блокам; смена TYPE — кроссфейд 20 мс. Тишина дольше 200 мс — выход нули, расчёт пропускается.
-// Расчёт — Double, как JS. Состояния каналов — в одном буфере (указатели: без проверок доступа в отладке).
+// Расчёт — Double. Состояния каналов — в одном буфере (указатели: без проверок доступа в отладке).
 
 /// Свёртка n отводов: acc + Σ k[j]·x[−j] (x — последний отсчёт окна). По 4 отвода со сдвигом указателей: в отладочной
 /// сборке счётчик и индексы цикла дороже самих умножений (S14b); порядок сложения тот же.
@@ -169,7 +169,7 @@ public final class FxDrive {
         cTone.deallocate()
     }
 
-    /// Состояния каналов — с нуля (как new Channel() веба).
+    /// Состояния каналов — с нуля.
     public func reset() {
         st.update(repeating: 0, count: 2 * FxDrive.chSize)
         ist.update(repeating: 0, count: 2 * FxDrive.iSize)
@@ -189,7 +189,7 @@ public final class FxDrive {
         out[4] = (1 - al) / a0
     }
 
-    /// Math.round: половина — вверх.
+    /// Округление: половина — вверх.
     @inline(__always) static func jsRound(_ x: Double) -> Double { return (x + 0.5).rounded(.down) }
 
     /// F(|u|) по таблице (кубический Эрмит; копия DriveTables.tableF — горячий путь в своём файле).
@@ -327,7 +327,7 @@ public final class FxDrive {
         return out
     }
 
-    /// Блок n отсчётов: вход (nil — тишина) → outL/outR (перезаписывает). Параметры — как AudioParam (Float).
+    /// Блок n отсчётов: вход (nil — тишина) → outL/outR (перезаписывает). Параметры — Float.
     public func process(inL: UnsafePointer<Float>?, inR: UnsafePointer<Float>?, outL: UnsafeMutablePointer<Float>,
                         outR: UnsafeMutablePointer<Float>, frames n: Int, drive dIn: Float, type tIn: Float,
                         tone toIn: Float, lowcut lIn: Float) {

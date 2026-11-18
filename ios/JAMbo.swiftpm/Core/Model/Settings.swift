@@ -1,6 +1,6 @@
 import Foundation
 
-// Настройки приложения (как settings.ts веба): хранятся отдельно от проектов (UserDefaults, JSON), общие для проектов.
+// Настройки приложения: хранятся отдельно от проектов (UserDefaults, JSON), общие для проектов.
 
 public struct RecordSettings: Codable, Equatable, Sendable {
     /// ON — нота на ближайший шаг, OFF — на шаг, в котором нажали.
@@ -148,12 +148,12 @@ public struct AppSettings: Codable, Equatable, Sendable {
     /// SETTINGS → APPEARANCE → FX ANIMATION (решение пользователя): картинки FX в окне сэмпла, пока регулируют ручки FX;
     /// по умолчанию — да.
     public var fxPictures: Bool = true
-    /// SETTINGS → AUDIO ENGINE → BACKGROUND AUDIO (как в вебе): звук играет, когда приложение свёрнуто или экран
+    /// SETTINGS → AUDIO ENGINE → BACKGROUND AUDIO: звук играет, когда приложение свёрнуто или экран
     /// заблокирован; по умолчанию — да. Нужен ключ UIBackgroundModes: audio (Info.plist рядом с Package.swift).
     public var backgroundAudio: Bool = true
     /// SETTINGS → AUDIO ENGINE → MULTICORE (17.11): дорожки синта на нескольких ядрах (RenderPool); по умолчанию — да.
     public var multicore: Bool = true
-    /// SETTINGS → APPEARANCE → SCALE: шкала дисплеев окон модулей мастера, dB (48, 32, 16; как в вебе).
+    /// SETTINGS → APPEARANCE → SCALE: шкала дисплеев окон модулей мастера, dB (48, 32, 16).
     public var displayScale: Int = 48
     public static let displayScales: [Int] = [48, 32, 16]
     /// SETTINGS → APPEARANCE → KNOB GROUPS (16.11, решение пользователя): группы ручек сеток 4×4 — строками (false,

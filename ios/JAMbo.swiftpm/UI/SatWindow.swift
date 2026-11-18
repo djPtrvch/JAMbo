@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Дисплей окна сатуратора (saturator.ts веба; решение пользователя: из двух половин DISPLAY — только SPECTRUM):
+/// Дисплей окна сатуратора (решение пользователя: из двух половин DISPLAY — только SPECTRUM):
 /// TRANSFER (не шире 35 %) | SPECTRUM. Точки съёма спектра (вход и выход сатуратора) пишутся, только пока окно открыто.
 struct SatDisplay: View {
     let model: AppModel

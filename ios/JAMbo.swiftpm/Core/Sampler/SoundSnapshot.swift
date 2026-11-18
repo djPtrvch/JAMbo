@@ -97,7 +97,7 @@ public struct SoundData {
     public var warpU: UnsafeMutablePointer<Double>? = nil
     public var warpP: UnsafeMutablePointer<Double>? = nil
     public var sliceNote: UnsafeMutablePointer<Int32>
-    /// Таблица WTABLE дорожки (указатели WtTable; кадров 0 — таблица ещё не готова, WTABLE молчит, как в вебе).
+    /// Таблица WTABLE дорожки (указатели WtTable; кадров 0 — таблица ещё не готова, WTABLE молчит).
     var tableRef: UnsafeMutablePointer<WtRef>
     /// Сэмпл GRANULAR звука (указатели SampleData из keep; нет — пусто, движок молчит).
     var grainRef: UnsafeMutablePointer<GrainSrc>
@@ -136,7 +136,7 @@ public struct SoundData {
     /// EQ каналов (EqSpec.fill): дорожки 0…maxTracks−1, мастер — EqSpec.masterChannel; по EqSpec.stride значений.
     public var eq: UnsafeMutablePointer<Double>
     /// Порядок дорожек в микшере (S7b): источник динамической полосы EQ — раньше дорожки, которая его слушает
-    /// (выход — в этом же блоке, как в вебе); в кольце источников одна дорожка слышит прошлый блок.
+    /// (выход — в этом же блоке); в кольце источников одна дорожка слышит прошлый блок.
     public var eqOrder: UnsafeMutablePointer<Int>
     /// EQ дорожки слушает другую дорожку (динамическая полоса с источником T1…T16, не своим): считается по порядку
     /// eqOrder; без этого EQ дорожки — задание MULTICORE до микшера (17.11).

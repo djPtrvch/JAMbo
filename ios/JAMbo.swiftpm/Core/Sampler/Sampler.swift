@@ -1,9 +1,9 @@
 import Foundation
 
-// Голоса сэмплера и микшер дорожек (в колбэке; как triggerTrack, legatoCut, fadeVoice, retrigger, releaseLive и
-// gateTrack веба). Голос: сэмпл (Start/End или маркер нарезки, кубическая интерполяция, край — 4 мс) → Attack/Decay
-// (длинная нота держит уровень до конца, Decay — как Release) → Velocity → фильтр (LP/HP + Resonance, Web Audio) →
-// Pan (StereoPanner) → шина дорожки → громкость микшера и гейт mute/solo → выход.
+// Голоса сэмплера и микшер дорожек (в колбэке).
+// Голос: сэмпл (Start/End или маркер нарезки, кубическая интерполяция, край — 4 мс) → Attack/Decay
+// (длинная нота держит уровень до конца, Decay — как Release) → Velocity → фильтр (LP/HP + Resonance) →
+// Pan → шина дорожки → громкость микшера и гейт mute/solo → выход.
 // Без выделений памяти после создания: голоса — массивы указателей.
 
 /// Из колбэка в интерфейс: полоса воспроизведения (позиция считается в интерфейсе по времени от начала ноты).
@@ -233,7 +233,7 @@ public final class Sampler: RenderJobs {
         gateCur.initialize(repeating: -1, count: SoundData.maxTracks)
         one.initialize(to: 0)
         scratch.initialize(repeating: 0, count: VoiceParam.count)
-        // Незанятые номера (движки Mutable Instruments) — 0: такой звук не синт и не сэмпл (пустой).
+        // Незанятые номера — 0: такой звук не синт и не сэмпл (пустой).
         synthHash.initialize(repeating: 0, count: SynthEngines.count)
         for e in SynthEngines.all { synthHash[e.id] = SoundKey.hash(SynthKey.key(e.id)) }
     }
@@ -361,7 +361,7 @@ public final class Sampler: RenderJobs {
         var i = 0
         while i < n {
             let m = Swift.min(sub, n - i)
-            // Сглаживание ручек по кусочкам (setTargetAtTime веба: 10 мс, фильтр — 15 мс).
+            // Сглаживание ручек по кусочкам (10 мс, фильтр — 15 мс).
             rate[v] += (rateT - rate[v]) * ks
             grainRatio[v] += (pitchR - grainRatio[v]) * ks
             level[v] += (levelT - level[v]) * Float(ks)
@@ -396,7 +396,7 @@ public final class Sampler: RenderJobs {
             var fq: Float = retype ? 0 : Biquad.mix(g0)
             let dfq: Float = (Biquad.mix(fdip[v]) - fq) / Float(m)
             let pn = pan[v]
-            // StereoPanner: моно — cos/sin; стерео — перекрёстно в сторону панорамы.
+            // Панорама: моно — cos/sin; стерео — перекрёстно в сторону панорамы.
             let x: Float = st ? (pn <= 0 ? pn + 1 : pn) : (pn + 1) / 2
             let gc = cos(x * Float.pi / 2)
             let gs = sin(x * Float.pi / 2)

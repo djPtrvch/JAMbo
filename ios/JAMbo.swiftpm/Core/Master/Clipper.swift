@@ -1,9 +1,9 @@
 import Foundation
 
-// Клиппер мастера — перенос public/clipper-worklet.js (решение пользователя S5a: без MIX, UNITY, AUDIT и снимков WAVE —
-// MIX 100 %, как по умолчанию в вебе, звук тот же; UNITY с 16.11 — в MasterChain.applyUnity, после метров).
+// Клиппер мастера (решение пользователя S5a: без MIX, UNITY, AUDIT и снимков WAVE — MIX 100 %;
+// UNITY с 16.11 — в MasterChain.applyUnity, после метров).
 // Стерео, каналы независимо.
-// Вход · DRIVE → кроссовер LR4 на BASS (0 — OFF, без деления; переход за 20 мс) → ВЧ: 4× оверсэмплинг (oversampler.js)
+// Вход · DRIVE → кроссовер LR4 на BASS (0 — OFF, без деления; переход за 20 мс) → ВЧ: 4× оверсэмплинг
 // → мягкое колено (SOFTNESS) по CEILING с антипроизводной и коррекцией [−1/8, 5/4, −1/8] → децимация;
 // НЧ — без обработки, с задержкой 32 → сумма. BYPASS — кроссфейд 10 мс с входом той же задержки.
 // Индикация (S5c): за кадр 256 отсчётов — пик после DRIVE, срез (dB, окна 10 мс), пик выхода.
@@ -236,7 +236,7 @@ public final class MasterClipper {
         return y
     }
 
-    /// Статическая кривая (окно клиппера, TRANSFER; clipCurve веба): выход в dB при уровне источника x dB (до INPUT),
+    /// Статическая кривая (окно клиппера, TRANSFER): выход в dB при уровне источника x dB (до INPUT),
     /// по формуле клиппера — u = x·INPUT/CEILING, колено k = 1 − 0,6·SOFTNESS, выше колена tanh.
     public static func staticOut(_ x: Double, input: Double, ceiling: Double, softness: Double) -> Double {
         let k: Double = 1 - 0.6 * (softness / 100)

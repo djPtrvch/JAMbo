@@ -5,7 +5,7 @@ import Foundation
 // основной — сам звук, вторичный (серый) — то, что его формирует. Здесь — типы и общие примитивы контуров,
 // колонки — в EngineIconsColumns.swift, ударные — в EngineIconsDrums.swift, синты — в EngineIconsJambo.swift.
 
-/// Значения иконки 0…1: h — ручка 1.1, t — 1.2, m — 1.3, q — 1.4 (S12), d — Decay 2.2; a — флаг a веба (не задаётся).
+/// Значения иконки 0…1: h — ручка 1.1, t — 1.2, m — 1.3, q — 1.4 (S12), d — Decay 2.2; a — флаг (не задаётся).
 public struct IconValues: Equatable, Sendable {
     public var h: Double
     public var t: Double

@@ -1,7 +1,7 @@
 import Foundation
 
-// Свои движки JAMbo (как public/jambo-synth-worklet.js веба): константы и таблицы. Таблицы считаются один раз
-// (вне колбэка) в Double, как JS, и хранятся во Float (как Float32Array в worklet).
+// Свои движки JAMbo: константы и таблицы. Таблицы считаются один раз
+// (вне колбэка) в Double и хранятся во Float.
 
 enum Jambo {
     static let drum = 16
@@ -84,7 +84,7 @@ enum Jambo {
         return (r, a)
     }
 
-    /// Кусок голоса (BLOCK worklet), кадров.
+    /// Кусок голоса, кадров.
     static let block = 24
     /// Плавный вход новой ноты (кроме DRUM), кадров: ~1,3 мс.
     static let fadeIn = 64
@@ -170,7 +170,7 @@ enum Jambo {
 
 /// Таблицы своих движков (указатели — колбэк не читает Swift-массивы).
 public final class JamboTables {
-    /// Синус 4096 + 1 точек (Float, как Float32Array).
+    /// Синус 4096 + 1 точек (Float).
     let sine: UnsafeMutablePointer<Float>
     /// Те же значения в Double (S14b: в отладочной сборке Double(Float) на каждом отсчёте — вызов функции).
     let sineD: UnsafeMutablePointer<Double>
@@ -258,7 +258,7 @@ public final class JamboTables {
 }
 
 /// Дрейф ANALOG (общий на дорожку): центы, цель, множитель частоты, время дорожки с дрейфом (кадров) и генератор
-/// (xorshift32 веба; состояние — Int 0…2³²−1, в отладке без обобщённых преобразований UInt32).
+/// (xorshift32; состояние — Int 0…2³²−1, в отладке без обобщённых преобразований UInt32).
 struct JamboDrift {
     var drift = 0.0
     var driftTo = 0.0

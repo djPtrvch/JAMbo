@@ -445,7 +445,7 @@ final class AppModel {
     /// История громкости мастера (окно под осциллоскопом при MIX).
     @ObservationIgnored let loudHist = LoudHistory()
     @ObservationIgnored let bandStereo = BandStereo()
-    /// Скоп мастера: точки съёма SAT (всегда), COMP, CLIP, LIM (по умолчанию выключены — отличие от веба; в проекте
+    /// Скоп мастера: точки съёма SAT (всегда), COMP, CLIP, LIM (по умолчанию выключены; в проекте
     /// не хранится).
     @ObservationIgnored let scope = ScopeState()
     @ObservationIgnored var _scopeOn: [Bool] = [true, false, false, false]
@@ -503,7 +503,7 @@ final class AppModel {
         audio.start()
     }
 
-    /// Приложение стало активным: возврат из фона (первый запуск звука — первым касанием, как в вебе).
+    /// Приложение стало активным: возврат из фона (первый запуск звука — первым касанием).
     func activate() {
         inBackground = false
         if audioStarted { audio.start() }
@@ -837,8 +837,8 @@ final class AppModel {
         refreshHistory()
     }
 
-    /// LOAD и NEW (S9c, как loadDoc веба): проект целиком вместо текущего. Игра останавливается (отличие от веба:
-    /// во время игры — переход MIX, S10), UNDO сбрасывается, окна закрываются, выбрана первая дорожка.
+    /// LOAD и NEW (S9c): проект целиком вместо текущего. Игра останавливается (во время
+    /// игры — переход MIX, S10), UNDO сбрасывается, окна закрываются, выбрана первая дорожка.
     func loadProject(_ p: Project) {
         if playing {
             playing = false

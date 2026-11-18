@@ -1,6 +1,6 @@
 import Foundation
 
-// Файлы библиотеки (S11c, как libio.ts веба): EXPORT — сэмпл WAV (32-бит float, 48 кГц — своя копия сэмпла;
+// Файлы библиотеки (S11c): EXPORT — сэмпл WAV (32-бит float, 48 кГц — своя копия сэмпла;
 // решение пользователя), пресет — .jambopreset ({ jambo: 'preset', preset }), таблица WTABLE — исходный WAV,
 // папка или выбор — .zip; IMPORT — аудио, .jambopreset и .zip (папки восстанавливаются в открытой папке).
 
@@ -120,7 +120,7 @@ extension Library {
     }
 
     /// IMPORT архива в папку into: папки создаются, пресеты добавляются; аудио — возвращается (папка, имя файла,
-    /// байты) для декодирования. Таблицы из архива — как сэмплы (как в вебе).
+    /// байты) для декодирования. Таблицы из архива — как сэмплы.
     public mutating func importZip(_ entries: [ZipEntry], into: String) -> (presets: Int, audio: [(String, String, Data)]) {
         var presets = 0
         var audio: [(String, String, Data)] = []

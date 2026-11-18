@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Скоп мастера вне колбэка (как ui/scope.ts веба): осциллоскоп — по столбцу на точку ширины, в столбце минимум
+/// Скоп мастера вне колбэка: осциллоскоп — по столбцу на точку ширины, в столбце минимум
 /// и максимум своего отрезка (окно 1 с), по кругу; гониометр — последние 4096 отсчётов выхода мастера.
 final class ScopeState {
     static let window: Double = 1
@@ -171,7 +171,7 @@ struct MasterScopeView: View {
         dimText(ctx, "R", CGPoint(x: cx + d - 4, y: cy - d - 3), .bottomLeading)
         let s: ScopeState = model.scope
         if !s.gonioOk { return }
-        // Четыре части окна: старые бледнее (послесвечение веба — 0,75 за кадр).
+        // Четыре части окна: старые бледнее (послесвечение — 0,75 за кадр).
         let parts = 4
         let per: Int = ScopeState.gonioN / parts
         for q in 0..<parts {

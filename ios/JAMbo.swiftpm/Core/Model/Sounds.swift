@@ -1,7 +1,7 @@
 import Foundation
 
-// Звук дорожки: папка звуков (стрелки ◀ ▶), свой звук шага, маркеры нарезки сэмпла (как state.ts веба:
-// addItems, applyItem, stepFolder, setStepSound, sliceMarks, sliceNotes). Пресеты синта в папке — S11b (SynthPreset).
+// Звук дорожки: папка звуков (стрелки ◀ ▶), свой звук шага, маркеры нарезки сэмпла.
+// Пресеты синта в папке — S11b (SynthPreset).
 
 /// Папка дорожки: сэмплы и пресеты синта, номер звучащего (−1 — нет).
 public struct Folder: Codable, Equatable, Sendable {
@@ -61,7 +61,7 @@ extension Track {
         return first
     }
 
-    /// Звук из папки на дорожку (applyItem веба): пресет — движок, его ручки и таблица.
+    /// Звук из папки на дорожку: пресет — движок, его ручки и таблица.
     public mutating func applyItem(_ it: FolderItem) {
         guard let p = it.preset else {
             // Прежняя папка (строки): ключ движка, которого нет, — пустой звук (S12).
@@ -95,7 +95,7 @@ extension Track {
         if index >= 0 { folder.index = index }
     }
 
-    /// Библиотека (setFolder веба): в папке дорожки — только эти звуки, первый звучит.
+    /// Библиотека: в папке дорожки — только эти звуки, первый звучит.
     public mutating func setFolder(_ items: [FolderItem]) {
         guard let first = items.first else { return }
         folder = Folder(items: items, index: 0)
@@ -109,7 +109,7 @@ extension Track {
         return FolderItem(preset: SynthPreset(name: name, sound: t.sample, params: [:], table: key))
     }
 
-    /// Пресет из синта дорожки (presetFromTrack веба); у сэмпла — nil.
+    /// Пресет из синта дорожки; у сэмпла — nil.
     public func preset(named name: String) -> SynthPreset? {
         guard let e = SynthKey.engine(sample) else { return nil }
         var p: [String: Double] = [:]
@@ -128,7 +128,7 @@ extension Track {
         return preset
     }
 
-    /// Имя пресета, если звук дорожки — пресет из её папки ("" — нет; folderItemName веба).
+    /// Имя пресета, если звук дорожки — пресет из её папки ("" — нет).
     public var presetName: String {
         guard folder.index >= 0 && folder.index < folder.items.count,
               let p = folder.items[folder.index].preset, p.sound == sample else { return "" }
@@ -236,7 +236,7 @@ extension Track {
         sample = new
     }
 
-    /// REC (addRecordedSample веба): был на дорожке сэмпл — запись встаёт на его место (и в папке), так повторная
+    /// REC: был на дорожке сэмпл — запись встаёт на его место (и в папке), так повторная
     /// запись перезаписывает прежнюю; не было (пусто, синт или сэмпла нет в папке) — добавляется в папку и звучит.
     public mutating func addRecordedSample(_ key: String) {
         let old: String = sample
@@ -320,8 +320,8 @@ public enum Slices {
     /// записи шагов. Учёт проб — docs/TRIALS.md.
     public static let fixedOctave: Int? = 3
 
-    /// Нота по порядку маркера idx — от первой клавиши клавиатуры (корневая нота его октавы; решение пользователя,
-    /// в вебе — от C3): CHROMATIC — по полутону, SCALE — клавиши клавиатуры по порядку (ступени гаммы).
+    /// Нота по порядку маркера idx — от первой клавиши клавиатуры (корневая нота его октавы; решение
+    /// пользователя): CHROMATIC — по полутону, SCALE — клавиши клавиатуры по порядку (ступени гаммы).
     public static func note(_ idx: Int, map: SliceMap, scale: Int, root: Int, octave: Int = 3) -> Int {
         if map != .scale { return Scales.baseNote(root: root, octave: octave) + idx }
         return Scales.note(scale: scale, root: root, octave: octave, degree: idx)

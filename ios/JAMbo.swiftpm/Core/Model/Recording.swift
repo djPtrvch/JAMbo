@@ -1,4 +1,4 @@
-// Запись нот с REC (как recordNotes, recordLength, recPassStep в state.ts веба) — правки шагов дорожки.
+// Запись нот с REC — правки шагов дорожки.
 
 extension Track {
     /// Ноты на шаг index. merge — добавить к записанным на этом шаге в том же дубле; overdub — к стоящим.

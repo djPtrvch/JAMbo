@@ -2,7 +2,7 @@ import AVFoundation
 import AVKit
 import SwiftUI
 
-/// SETTINGS (S9d, как ui/settings.ts веба): стрелка назад и «Settings»; подпись SECTIONS и вкладки (APPEARANCE — тоже
+/// SETTINGS (S9d): стрелка назад и «Settings»; подпись SECTIONS и вкладки (APPEARANCE — тоже
 /// вкладка); ниже — с чертой — открытая вкладка. Всё прокручивается пальцем.
 struct SettingsPage: View {
     let model: AppModel

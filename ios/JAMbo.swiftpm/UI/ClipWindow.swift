@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Дисплей окна клиппера (clipper.ts веба, вид LEVEL; решение пользователя: один дисплей, без WAVE и кнопки VIEW):
-/// TRANSFER (не шире 40 %) | LEVEL | блок CLIP. Шкала обоих — 0…−48 dB (у TRANSFER в вебе −30…0): сетка и линия
+/// Дисплей окна клиппера (вид LEVEL; решение пользователя: один дисплей, без WAVE и кнопки VIEW):
+/// TRANSFER (не шире 40 %) | LEVEL | блок CLIP. Шкала обоих — 0…−48 dB: сетка и линия
 /// CEILING на одной высоте, как у компрессора.
 struct ClipDisplay: View {
     let model: AppModel

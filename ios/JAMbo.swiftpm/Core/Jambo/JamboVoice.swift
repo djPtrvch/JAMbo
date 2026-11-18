@@ -1,9 +1,8 @@
 import Foundation
 
-// Голос своих движков JAMbo — KICK, ANALOG, FM, WTABLE (перенос класса Voice из public/jambo-synth-worklet.js;
-// ручки 1.4 и новые режимы — S12).
-// Состояние и арифметика — в Double (как JS), отсчёты выхода и буфер фильтра децимации — значения Float (Float32Array;
-// буфер хранит их в Double — без преобразования на каждом отводе).
+// Голос своих движков JAMbo — KICK, ANALOG, FM, WTABLE (ручки 1.4 и новые
+// режимы — S12).
+// Состояние и арифметика — в Double, отсчёты выхода и буфер фильтра децимации — значения Float (буфер хранит их в Double — без преобразования на каждом отводе).
 // Горячие циклы — без вызовов из других файлов, состояние — в локальных переменных (отладочная сборка Playgrounds).
 
 /// frac(x) = x − floor(x).
@@ -15,7 +14,7 @@ import Foundation
     return f > x ? f - 1 : f
 }
 
-/// Синус по фазе в периодах (таблица 4096 с линейной интерполяцией), как sinT в worklet; таблица — sineD (значения
+/// Синус по фазе в периодах (таблица 4096 с линейной интерполяцией); таблица — sineD (значения
 /// Float в Double).
 @_transparent private func jSin(_ table: UnsafePointer<Double>, _ ph: Double) -> Double {
     var x = ph - jFloor(ph)
@@ -118,7 +117,7 @@ final class JamboVoice {
     // Вход новой ноты (кадров с её начала).
     private var fade = Jambo.fadeIn
 
-    /// xorshift32 голоса (rand в worklet; состояние — Int 0…2³²−1).
+    /// xorshift32 голоса (состояние — Int 0…2³²−1).
     private func rand() -> Double {
         rnd = JamboDrift.xorshift(rnd)
         return Double(rnd) / 4294967296

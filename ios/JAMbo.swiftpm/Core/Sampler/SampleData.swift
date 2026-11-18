@@ -54,7 +54,7 @@ public final class SampleData: @unchecked Sendable {
     }
 }
 
-/// Правки сэмпла в редакторе (TRIM, NORMALIZE, MONO) и данные для рисования (как ui/sampleedit.ts веба).
+/// Правки сэмпла в редакторе (TRIM, NORMALIZE, MONO) и данные для рисования.
 public enum SampleEdit {
     /// TRIM: оставить отрезок a…b (доли длины).
     // Правки — прямо по буферам, циклы while без вызовов функций (отладочная сборка Playgrounds не оптимизирует).

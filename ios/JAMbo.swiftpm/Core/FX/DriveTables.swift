@@ -1,12 +1,12 @@
 import Foundation
 
-// Таблицы Drive и 4× оверсэмплера — как при загрузке public/oversampler.js и public/drive-worklet.js:
+// Таблицы Drive и 4× оверсэмплера (считаются один раз):
 // ядро FIR (окно Кайзера) и его фазы, антипроизводные tanh и FUZZ (Симпсон, шаг 1/32 до 12), компенсация громкости
 // по типу и DRIVE (шаг 0,1 dB). Строятся один раз (shared — при создании первого Drive, вне колбэка);
 // Drive читает их через указатели.
 
 public final class DriveTables: @unchecked Sendable {
-    // Оверсэмплер (oversampler.js).
+    // Оверсэмплер.
     static let oversample = 4
     static let firLen = 129
     static let kaiserBeta: Double = 9

@@ -119,7 +119,7 @@ extension AppModel {
         }
         let t = track
         var base: Double = fxMode ? fxValue(p) : t.params[p.id] ?? p.def
-        // Кривая аранжировки (как в вебе): база — значение кривой (палец на ручке — рука), риска — кривая.
+        // Кривая аранжировки: база — значение кривой (палец на ручке — рука), риска — кривая.
         var autoN: Double? = nil
         if !fxMode && !modMode, let cn = autoCurveNorm(selectedTrack, p.id) {
             autoN = cn
@@ -235,7 +235,7 @@ extension AppModel {
             }
             return
         }
-        // Мастер: без p-lock — с зажатым шагом крутится само значение (noLock, как в вебе).
+        // Мастер: без p-lock — с зажатым шагом крутится само значение (noLock).
         if channel == .master {
             edit { pr in pr.master[p.id] = v }
             return

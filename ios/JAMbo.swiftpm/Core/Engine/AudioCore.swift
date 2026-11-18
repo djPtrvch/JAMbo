@@ -35,7 +35,7 @@ public final class AudioCore: @unchecked Sendable {
     /// Пики дорожек и выхода мастера, приглушение Sidechain, LUFS показанного канала (измеритель и метры MIX).
     public let levels = Levels()
     /// Цепочка мастера (сумма дорожек и FX → EQ → SAT → COMP → CLIP → LIM); тест-тон, метроном и прослушивание — мимо неё,
-    /// как в вебе. Без мастера (useMaster false) — тесты, которые сверяют выход по отсчётам.
+    /// Без мастера (useMaster false) — тесты, которые сверяют выход по отсчётам.
     public let master = MasterChain(sampleRate: AudioCore.sampleRate)
     /// Референс аранжировщика (S15g): A/B, мимо мастера или через него.
     public let ref = RefPlayer()

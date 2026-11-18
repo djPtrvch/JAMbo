@@ -1,7 +1,7 @@
 import Foundation
 
-/// Генератор случайных чисел эффектов — mulberry32 (как Math.random в эталонах ios/tools/fx/golden.mjs):
-/// с тем же seed модуляция (wow, flutter, LFO линий реверба) совпадает с вебом по отсчётам.
+/// Генератор случайных чисел эффектов — mulberry32 (тот же, что в эталонах тестов):
+/// с тем же seed модуляция (wow, flutter, LFO линий реверба) совпадает с эталонами по отсчётам.
 public struct FxRandom {
     private var s: UInt32
 

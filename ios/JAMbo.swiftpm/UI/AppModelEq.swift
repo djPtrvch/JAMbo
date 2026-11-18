@@ -14,7 +14,7 @@ struct EqPresetMenuState: Equatable {
     let bottom: CGFloat
 }
 
-/// EQ на месте центра (кнопка EQ, как src/ui/eq.ts веба): канал — выбранная дорожка, при MIX и MST — мастер.
+/// EQ на месте центра (кнопка EQ): канал — выбранная дорожка, при MIX и MST — мастер.
 extension AppModel {
     /// Канал EQ: дорожка или EqSpec.masterChannel.
     var eqChannel: Int { return channel == .track ? selectedTrack : EqSpec.masterChannel }
@@ -442,7 +442,7 @@ extension AppModel {
     }
 }
 
-/// Подписи значений EQ (как fmtHz, fmtGain веба).
+/// Подписи значений EQ.
 enum EqFormat {
     static func hz(_ f: Double) -> String {
         if f < 1000 { return String(format: f < 100 ? "%.1f Hz" : "%.0f Hz", f) }

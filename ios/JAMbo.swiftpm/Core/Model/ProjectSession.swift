@@ -1,12 +1,12 @@
 import Foundation
 
-// Текущий проект (S9b, как project.ts веба): id и имя проекта, в который сохраняет SAVE; что записано кнопкой SAVE
+// Текущий проект (S9b): id и имя проекта, в который сохраняет SAVE; что записано кнопкой SAVE
 // (для пометки «unsaved») и автосохранением. Автосохранение пишет не в проект, а в запись Autosave (с id и именем
 // проекта); при запуске открывается она, но SAVE по-прежнему сохраняет в тот проект.
 
 public struct ProjectSession: Sendable {
     public static let autosaveName = "Autosave"
-    /// Пауза после изменений до автосохранения, с (AUTOSAVE_MS веба).
+    /// Пауза после изменений до автосохранения, с.
     public static let autosaveDelay: Double = 1.5
 
     public var id: String
@@ -53,7 +53,7 @@ public struct ProjectSession: Sendable {
         return ProjectInfo(id: id, name: name, updated: now)
     }
 
-    /// Имя нового проекта: «Project N», первое свободное (nextName веба).
+    /// Имя нового проекта: «Project N», первое свободное.
     public static func nextName(_ list: [ProjectInfo]) -> String {
         let names = Set(list.map { $0.name })
         var n = 1
@@ -114,7 +114,7 @@ public struct ProjectSession: Sendable {
     }
 }
 
-// Действия меню PROJECTS (S9c, как project.ts веба). Запись — сразу на диск; список перечитывает вызывающий.
+// Действия меню PROJECTS (S9c). Запись — сразу на диск; список перечитывает вызывающий.
 extension ProjectSession {
     /// Длина имени проекта (CLAUDE.md: проекты — 24 знака).
     public static let nameLimit = 24
@@ -187,14 +187,14 @@ extension ProjectSession {
         return "\(note) \(Scales.all[scale].short)"
     }
 
-    /// IMPORT (S11a, как importProject веба): имя занято — «имя (imported)»; длиннее 24 — можно (подставленное).
+    /// IMPORT (S11a): имя занято — «имя (imported)»; длиннее 24 — можно (подставленное).
     public static func importedName(_ name: String, in list: [ProjectInfo]) -> String {
         let n: String = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let base: String = n.isEmpty ? nextName(list) : n
         return list.contains { $0.name == base } ? "\(base) (imported)" : base
     }
 
-    /// EXPORT: имя файла .jambo — буквы, цифры, «-», «_» и пробел, прочее — «_» (как exportProject веба).
+    /// EXPORT: имя файла .jambo — буквы, цифры, «-», «_» и пробел, прочее — «_».
     public static func exportFileName(_ name: String) -> String {
         var out: String = ""
         for ch in name {

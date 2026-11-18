@@ -37,7 +37,7 @@ extension Sampler {
             }
         }
         let lv = levels
-        // Громкость с p-lock играющего шага MIX (как liveMixer веба).
+        // Громкость с p-lock играющего шага MIX.
         let lockMask: UInt16 = mixLockMask?.pointee ?? 0
         let lockGain: UnsafeMutablePointer<Float>? = mixLockGain
         let mf = Sampler.maxFrames
@@ -98,7 +98,7 @@ extension Sampler {
                     amt += (at - amt) * dk
                     let g: Float = vol * gate
                     let de: Float = amt * eb[i]
-                    // Метр — после громкости и Sidechain, до mute/solo (узел vol веба).
+                    // Метр — после громкости и Sidechain, до mute/solo.
                     let pv: Float = vol * (1 - de)
                     let xl: Float = bl[i] * pv
                     let xr: Float = br[i] * pv

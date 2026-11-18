@@ -1,6 +1,6 @@
 import Foundation
 
-// Свои таблицы WTABLE из WAV (S11b4, как parseWav, autoFrameSize, wavSpectra веба): PCM 16/24/32 бит или float 32,
+// Свои таблицы WTABLE из WAV (S11b4): PCM 16/24/32 бит или float 32,
 // у стерео — левый канал; размер кадра — из метки Serum ('clm ') или выбором 256…2048 / AUTO; до 256 кадров, файл
 // до 4 МБ. Байты WAV хранятся как есть (без пересчёта частоты) — Application Support/Tables/<ключ>.wav.
 

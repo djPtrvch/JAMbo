@@ -1,6 +1,6 @@
 import Foundation
 
-// Проект после чтения (S9a, как normalizeDoc веба): размеры массивов и номера — в пределах, которые ждут
+// Проект после чтения (S9a): размеры массивов и номера — в пределах, которые ждут
 // секвенсор и UI; новые параметры дорожек, FX и мастера — значения по умолчанию.
 
 extension Project {
@@ -122,7 +122,7 @@ extension Track {
     /// Дорожка (или MIX, MST) проекта из n дорожек.
     mutating func repair(tracks n: Int) {
         params = Params.defaults().merging(params) { _, v in v }
-        // Звук движка, которого нет (Mutable Instruments, mi:0…mi:15), — пустой (S12).
+        // Звук движка, которого нет в таблице, — пустой.
         if SynthKey.isRemoved(sample) { sample = "" }
         if let h = home, SynthKey.isRemoved(h.sample) { home!.sample = "" }
         for k in 0..<clips.count {

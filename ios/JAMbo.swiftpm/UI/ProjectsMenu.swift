@@ -8,7 +8,7 @@ enum ProjectInput: Equatable {
     case renameId(String)
 }
 
-/// Меню PROJECTS (S9c, как ui/projects.ts веба): стрелка назад и «имя · unsaved»; NEW, SAVE, SAVE AS
+/// Меню PROJECTS (S9c): стрелка назад и «имя · unsaved»; NEW, SAVE, SAVE AS
 /// (переименование — карандашом в списке, решение пользователя), EXPORT, IMPORT (S11a, файл .jambo — AppModelFiles);
 /// список проектов: тап — окно LOAD / MIX, свайп влево — карандаш и корзина (у Autosave — только корзина).
 /// SAVE AS с именем существующего проекта спрашивает, перезаписать ли его. IMPORT кончается окном LOAD / MIX.

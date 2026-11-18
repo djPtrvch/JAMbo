@@ -187,7 +187,7 @@ final class TextureVoice {
 
     // MARK: — цели
 
-    /// Коэффициенты фильтра f (0 — ФНЧ, 1 — ФВЧ: Q в dB, как в Web Audio; 2…5 — полосовой, Q линейно, 0 dB на пике).
+    /// Коэффициенты фильтра f (0 — ФНЧ, 1 — ФВЧ: Q в dB; 2…5 — полосовой, Q линейно, 0 dB на пике).
     private func coef(_ f: Int, _ hz: Double, _ q: Double) {
         let w0: Double = 2 * Double.pi * Swift.min(hz, sr * 0.45) / sr
         let c: Double = cos(w0)

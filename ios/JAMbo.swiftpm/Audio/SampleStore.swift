@@ -108,7 +108,7 @@ final class SampleStore {
         return read(file)
     }
 
-    /// Сэмпл из файла проекта .jambo (S11a): байты исходного файла (веб) или своей копии .caf (Swift) — в
+    /// Сэмпл из файла проекта .jambo (S11a): байты своей копии .caf — в
     /// Samples/<ключ>.caf. Уже лежит — не трогается. Ключ — только буквы и цифры (имя файла), иначе false.
     static func importPacked(_ s: PackSample, dir: URL) -> Bool {
         if s.key.isEmpty || !s.key.allSatisfy({ $0.isASCII && ($0.isLetter || $0.isNumber) }) { return false }

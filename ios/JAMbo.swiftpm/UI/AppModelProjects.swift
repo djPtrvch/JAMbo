@@ -33,7 +33,7 @@ extension AppModel {
         projectChanged()
     }
 
-    /// Проект изменился: автосохранение — через ~1,5 с после первого изменения (как интервал веба).
+    /// Проект изменился: автосохранение — через ~1,5 с после первого изменения.
     func projectChanged() {
         updateGrainSeconds()
         stereoCache.removeAll()
@@ -101,7 +101,7 @@ extension AppModel {
 
     /// Записи на диск — в очереди автосохранения (по порядку), с ожиданием. Затем Autosave пишется заново: в нём
     /// id и имя проекта (иначе после RENAME или SAVE AS при запуске открылось бы прежнее имя).
-    /// Удаление Autosave не пересоздаёт (rewrite false): он появится при следующем изменении, как в вебе.
+    /// Удаление Autosave не пересоздаёт (rewrite false): он появится при следующем изменении.
     private func write(rewrite: Bool = true, _ f: (inout ProjectSession) -> Void) {
         var s = session
         saveQueue.sync { f(&s) }

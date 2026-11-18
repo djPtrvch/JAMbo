@@ -1,6 +1,6 @@
 import Foundation
 
-/// Фильтр голоса как BiquadFilterNode веба (формулы спецификации Web Audio): lowpass, highpass и bandpass, Q в dB.
+/// Фильтр голоса (биквад RBJ): lowpass, highpass и bandpass, Q в dB.
 /// Ручка Filter (9.11): частота на всём ходу (Fmt.filterHz), тип — FilterType; открытый LP и HP — LP на 20 кГц
 /// (как прежний центр: фильтр остаётся в цепочке). LADDER (SUB) считает SynthVoices (Ladder.swift).
 /// Resonance: Q = 0.7 + reso/100·18 (dB).

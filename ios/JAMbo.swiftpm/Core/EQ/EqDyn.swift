@@ -1,7 +1,7 @@
 import Foundation
 
-// Детекторы динамических полос EQ (S7b) — как в EqChain веба: источник → фильтр детектора (BiquadFilterNode: у bell —
-// полосовой на частоте и Q полосы, у low shelf — ФНЧ, у high shelf — ФВЧ, Q 0,7071 в dB) → eqdyn-worklet.js: пик
+// Детекторы динамических полос EQ (S7b): источник → фильтр детектора (биквад: у bell —
+// полосовой на частоте и Q полосы, у low shelf — ФНЧ, у high shelf — ФВЧ, Q 0,7071 в dB) → детектор: пик
 // (STEREO — max |L|, |R|; MID — |L+R|/2; SIDE — |L−R|/2) с атакой 5 мс и спадом 100 мс, сдвиг усиления
 // RANGE · min(1, (уровень − THRESHOLD) / 12 dB), ниже порога — 0; сдвиг на каждый отсчёт прибавляется к усилению
 // полосы. Фильтр детектора — стерео-узел: частота и Q сглаживаются, как у полос EqUnit (L и R — свои отрезки
@@ -14,7 +14,7 @@ public final class EqDetectors {
     static let attackMs: Double = 5
     static let releaseMs: Double = 100
     static let spanDb: Double = 12
-    /// Q фильтра детектора у shelf (Math.SQRT1_2; у ФНЧ и ФВЧ Web Audio — в dB).
+    /// Q фильтра детектора у shelf (1/√2; у ФНЧ и ФВЧ — в dB).
     static let shelfQ: Double = 0.7071067811865476
     /// Тип фильтра детектора «полосовой» для EqCoeffs.coeffs.
     static let bandpass = 6
@@ -132,7 +132,7 @@ public final class EqDetectors {
         EqCoeffs.coeffs(kind[i], tf[i], 0, tq[i], sr, co + i * 5)
     }
 
-    /// Изменились частота, усиление или Q полосы: новое сглаживание фильтра детектора (как setDetFilter веба).
+    /// Изменились частота, усиление или Q полосы: новое сглаживание фильтра детектора.
     func retarget(_ i: Int, _ p: UnsafePointer<Double>, _ band: Int, decay: Double) {
         if src[i] < 0 { return }
         if moving[i] != 0 {
@@ -188,7 +188,7 @@ public final class EqDetectors {
             return
         }
         filter(i, fl, fr, n, sr: sr, decay: decay)
-        // Огибающая и сдвиг (eqdyn-worklet.js: расчёт в Double, выход — Float).
+        // Огибающая и сдвиг (расчёт в Double, выход — Float).
         let ka: Double = kAtt, kr: Double = kRel
         let t: Double = thr[i], rg: Double = range[i]
         let mode: Int = ms[i]

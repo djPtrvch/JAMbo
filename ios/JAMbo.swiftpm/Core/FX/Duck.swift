@@ -1,6 +1,6 @@
 import Foundation
 
-// Sidechain — перенос public/duck-worklet.js 1:1: огибающая приглушения e (0…1; 1 — полное приглушение), один экземпляр
+// Sidechain: огибающая приглушения e (0…1; 1 — полное приглушение), один экземпляр
 // на проект, входа нет. Громкость дорожки = 1 − amount·e (amount — ручка 3.4 Sidechain, у источника 0).
 // Триги источника приходят заранее (trig: кадр, attack, release, curve) и ждут в очереди по кадру; flush — остановка:
 // будущие триги отменяются (текущий возврат досчитывается). Attack — линейно от текущего e до 1 за max(1 мс, ATTACK)
@@ -32,7 +32,7 @@ public final class FxDuck {
     var count = 0
     var sinceReport = 0
     var reported: Double = 0
-    /// Индикация (как сообщение { e } веба): раз в 512 отсчётов, пока e > 0.001, и раз при возврате к 0.
+    /// Индикация: раз в 512 отсчётов, пока e > 0.001, и раз при возврате к 0.
     public private(set) var meter: Double = 0
 
     public init(sampleRate: Double) {
@@ -83,7 +83,7 @@ public final class FxDuck {
         count -= 1
     }
 
-    /// Math.round: половина — вверх.
+    /// Округление: половина — вверх.
     static func jsRound(_ x: Double) -> Double { return (x + 0.5).rounded(.down) }
 
     /// Триг: attack с текущего e.

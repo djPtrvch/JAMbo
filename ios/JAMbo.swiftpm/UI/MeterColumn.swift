@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Измеритель уровня справа (как ui/meter.ts веба): сверху интегральная громкость LUFS (тап — сброс), метка
+/// Измеритель уровня справа: сверху интегральная громкость LUFS (тап — сброс), метка
 /// клиппинга, полосы (стерео — две, моно — одна; шкала −60…0 dB, пик-холд, выше 0 dB — красная, заглушённая
 /// дорожка — серая), снизу наибольший
 /// пик в dB (тап — сброс). Поверх полос — регулятор громкости (белая планка по той же шкале): у дорожки — её громкость
@@ -74,7 +74,7 @@ struct MeterColumn: View {
         let stereo: Bool = ch >= Levels.master || model.trackStereo(ch)
         let track: Bool = ch < Levels.master
         let vol: Double = faderValue(ch)
-        // Заглушённая дорожка — серым, как в MIX (отличие от веба).
+        // Заглушённая дорожка — серым, как в MIX.
         let muted: Bool = track && ch < model.project.tracks.count && !model.project.audible(ch)
         let meters: MeterState = model.meters
         return GeometryReader { geo in

@@ -1,12 +1,12 @@
 import Foundation
 import Synchronization
 
-// Голоса синта (в колбэке; как triggerSynth веба и jambo-synth-worklet.js): 6 голосов на дорожку, слот — по кругу
+// Голоса синта (в колбэке): 6 голосов на дорожку, слот — по кругу
 // (свободный: голос дозвучал), иначе крадётся следующий — гаснет за ~5 мс (τ 1,5 мс), новая нота — через 8 мс.
 // Громкость — внешняя огибающая, как у сэмпла: Attack (не меньше 2 мс) → удержание → Decay как Release.
-// Движок → огибающая → Level → фильтр → Pan → шина дорожки (микшер — в Sampler). Куски по 24 отсчёта (BLOCK worklet).
-// Стерео-движки (TEXTURE, GRANULAR): фильтр голоса — по двум каналам с общими коэффициентами, Pan — баланс (StereoPanner веба
-// со стерео-входом).
+// Движок → огибающая → Level → фильтр → Pan → шина дорожки (микшер — в Sampler). Куски по 24 отсчёта.
+// Стерео-движки (TEXTURE, GRANULAR): фильтр голоса — по двум каналам с общими коэффициентами, Pan — баланс
+// стерео-входа.
 // Затухающие сами (KICK): огибающая только с атакой (без удержания и релиза), голос считается до тишины (не дольше
 // 15 с), слот занят до атаки + 0,3 с + 4·Decay; с атакой ≤ 2,5 мс в свободном слоте огибающая не обнуляется — хвост
 // прошлой ноты не обрывается скачком, ручки звука слота подстраиваются за ~1 мс.
@@ -16,7 +16,7 @@ public final class SynthVoices: RenderJobs {
     static let tracks = SoundData.maxTracks
     static let slots = tracks * perTrack
     static let chunk = 24
-    /// Голос без звука дольше 4800 отсчётов (и с начала ноты прошло больше) замолкает (SILENCE worklet).
+    /// Голос без звука дольше 4800 отсчётов (и с начала ноты прошло больше) замолкает.
     static let silence = 4800
 
     let sr: Double
@@ -96,7 +96,7 @@ public final class SynthVoices: RenderJobs {
     let pVal = UnsafeMutablePointer<Float>.allocate(capacity: slots * VoiceParam.count)
     /// Следующий слот дорожки (по кругу).
     let next = UnsafeMutablePointer<Int>.allocate(capacity: tracks)
-    /// Дрейф ANALOG (общий на дорожку, как узел worklet) и начало текущего блока.
+    /// Дрейф ANALOG (общий на дорожку) и начало текущего блока.
     let drift = UnsafeMutablePointer<JamboDrift>.allocate(capacity: tracks)
     private var blockStart: Int64 = 0
     /// Номер запуска голоса (по возрастанию; атомарный — голоса дорожек запускаются на разных потоках, MULTICORE).
@@ -365,7 +365,7 @@ public final class SynthVoices: RenderJobs {
         self.sendL = sendL
         self.sendR = sendR
         self.stride = stride
-        // Дрейф ANALOG — в начале блока (process() узла worklet), время дорожки — в конце.
+        // Дрейф ANALOG — в начале блока, время дорожки — в конце.
         self.blockStart = blockStart
         var t = 0
         while t < SynthVoices.tracks {
@@ -505,7 +505,7 @@ public final class SynthVoices: RenderJobs {
         let locks: UnsafeMutablePointer<Float> = lockVal + v * VoiceParam.count
         let e = engine[v]
         var peak: Float = 0
-        // Свои движки (jambo-synth-worklet.js): p1–p4 — ручки 1.1–1.4 / 100, Decay — мс; сглаживание — в голосе (5 мс).
+        // Свои движки: p1–p4 — ручки 1.1–1.4 / 100, Decay — мс; сглаживание — в голосе (5 мс).
         var q1 = knob(row, locks, mask, modE, t, frame0, VoiceParam.harm) / 100
         let q2 = knob(row, locks, mask, modE, t, frame0, VoiceParam.timbre) / 100, q3 = knob(row, locks, mask, modE, t, frame0, VoiceParam.morph) / 100
         let q4k = knob(row, locks, mask, modE, t, frame0, VoiceParam.p4) / 100
@@ -562,7 +562,7 @@ public final class SynthVoices: RenderJobs {
             active[v] = 0
             return
         }
-        // Сглаживание ручек (setTargetAtTime веба: 10 мс, фильтр — 15 мс).
+        // Сглаживание ручек (10 мс, фильтр — 15 мс).
         let levelT = Float(pow(knob(row, locks, mask, modE, t, frame0, VoiceParam.level) / 127, 1.5))
         let panT = Float(Swift.max(-1, Swift.min(1, knob(row, locks, mask, modE, t, frame0, VoiceParam.pan) / 64)))
         let fk = Biquad.knob(knob(row, locks, mask, modE, t, frame0, VoiceParam.filter), reso: knob(row, locks, mask, modE, t, frame0, VoiceParam.reso),
@@ -635,7 +635,7 @@ public final class SynthVoices: RenderJobs {
         var x1 = z[zb], x2 = z[zb + 1], y1 = z[zb + 2], y2 = z[zb + 3]
         var j = 0
         if !stereo {
-            // StereoPanner, моно: cos/sin.
+            // Панорама, моно: cos/sin.
             let x: Float = (pan[v] + 1) / 2
             let gc = cos(x * Float.pi / 2)
             let gs = sin(x * Float.pi / 2)
@@ -670,7 +670,7 @@ public final class SynthVoices: RenderJobs {
                 j += 1
             }
         } else {
-            // StereoPanner, стерео-вход (баланс): pan ≤ 0 — правый канал частью уходит влево, pan > 0 — наоборот.
+            // Панорама, стерео-вход (баланс): pan ≤ 0 — правый канал частью уходит влево, pan > 0 — наоборот.
             let p: Float = pan[v]
             let x: Float = p <= 0 ? p + 1 : p
             let gc = cos(x * Float.pi / 2)

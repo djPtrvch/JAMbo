@@ -93,7 +93,7 @@ extension EngineIcons {
 
     // MARK: — сигнал и колонки
 
-    /// Сигнал gen прототипа: cols · 6 + 1 точек, fn(u, i), u = 0…1. Хранится во Float, как Float32Array.
+    /// Сигнал gen прототипа: cols · 6 + 1 точек, fn(u, i), u = 0…1. Хранится во Float.
     static func gen(_ cols: Int = 72, _ fn: (Double, Int) -> Double) -> [Double] {
         let n = cols * sub
         var a = [Double](repeating: 0, count: n + 1)

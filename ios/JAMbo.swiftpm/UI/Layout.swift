@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Размеры раскладки (как в вебе, style.css): зазоры, скругления, ширина шага секвенсора.
+/// Размеры раскладки (style.css): зазоры, скругления, ширина шага секвенсора.
 struct Layout {
     static let gap: CGFloat = 6
     static let radius: CGFloat = 10

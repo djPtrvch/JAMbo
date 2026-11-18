@@ -1,10 +1,10 @@
 import Foundation
 
-// Пресет синта и звук папки дорожки (S11b, как Preset и FolderItem в state.ts веба). Пресет — движок (ключ звука
+// Пресет синта и звук папки дорожки (S11b). Пресет — движок (ключ звука
 // «mi:<n>»), ручки звука (presetParams), у WTABLE — таблица, у GRANULAR — сэмпл. В папке дорожки — сэмплы и пресеты
 // (копии).
 
-/// Пресет синта: имя, движок, ручки; fmt — версия формата (веб — 2; 3 — S12, ручки 1.4 своих движков; 4 — ручки
+/// Пресет синта: имя, движок, ручки; fmt — версия формата (2 — первая; 3 — S12, ручки 1.4 своих движков; 4 — ручки
 /// GRANULAR по ТЗ «Granular»; 5 — Filter на всём ходу и тип фильтра, 9.11).
 public struct SynthPreset: Codable, Equatable, Sendable {
     public var name: String
@@ -30,7 +30,7 @@ public struct SynthPreset: Codable, Equatable, Sendable {
         self.grain = grain
     }
 
-    /// Ручки звука, которые хранит пресет (PRESET_PARAMS веба), тип фильтра (нет — LP); у ANALOG — ещё режим
+    /// Ручки звука, которые хранит пресет , тип фильтра (нет — LP); у ANALOG — ещё режим
     /// модуляции и октава B (AnalogMod; нет в пресете — выключены).
     public static let params: [String] = ["harm", "timbre", "morph", "p4", "level", "attack", "decay", "filter", "reso",
                                           Params.filterTypeId, AnalogMod.modId, AnalogMod.octId]
@@ -50,7 +50,7 @@ public struct SynthPreset: Codable, Equatable, Sendable {
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         name = c.value(.name, "")
-        // Пресет движка, которого нет (Mutable Instruments, mi:0…mi:15), — пустой (S12).
+        // Пресет движка, которого нет в таблице, — пустой.
         let snd: String = c.value(.sound, "")
         sound = SynthKey.isRemoved(snd) ? "" : snd
         params = c.value(.params, [String: Double]())
@@ -77,7 +77,7 @@ public struct SynthPreset: Codable, Equatable, Sendable {
     }
 }
 
-/// Звук папки дорожки: сэмпл (ключ) или пресет синта. В файле — как в вебе: { sample } или { preset };
+/// Звук папки дорожки: сэмпл (ключ) или пресет синта. В файле: { sample } или { preset };
 /// прежние файлы Swift-версии (S2–S11a) — строкой (ключ сэмпла или «mi:<n>»).
 public struct FolderItem: Codable, Equatable, Sendable, ExpressibleByStringLiteral {
     public var sample: String?

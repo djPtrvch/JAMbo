@@ -167,7 +167,7 @@ struct EqSlot {
 }
 
 /// Строка EQ: имя канала под бутербродом, TYPE, FREQ, GAIN, Q, STEREO, DYN, LISTEN, PRESETS, BYPASS (решения
-/// пользователя; в вебе — над дорожками 1…8): TYPE — с левого края поля BPM, TYPE…Q — равные, правый край Q — по
+/// пользователя): TYPE — с левого края поля BPM, TYPE…Q — равные, правый край Q — по
 /// правому краю UNDO; LISTEN, PRESETS, BYPASS — по кнопкам EQ, PATTERNS, ARRANGE верхней панели; STEREO и DYN —
 /// поровну между Q и LISTEN. Пока рамки верхней панели неизвестны — 9 равных столбцов до правого края.
 struct EqBar: View {
@@ -348,8 +348,8 @@ struct EqBar: View {
                        model: model)
     }
 
-    /// FREQ: 2 px на 1/24 октавы; двойной тап (палец может сдвинуться до 14 px) — ввод числом (решение пользователя;
-    /// в вебе — тап или удержание).
+    /// FREQ: 2 px на 1/24 октавы; двойной тап (палец может сдвинуться до 14 px) — ввод числом (решение
+    /// пользователя).
     private func freqField(_ b: EqBand?) -> some View {
         let k: Int = model.eqBand
         return EqField(label: "FREQ", value: b.map { EqFormat.hz($0.freq) } ?? "—", enabled: b != nil, pxPerUnit: 2,
@@ -368,7 +368,7 @@ struct EqBar: View {
                        double: { input(.gain) }, model: model)
     }
 
-    /// M/S (как в вебе): палец вниз — следующий режим (30 px на режим), тап — меню STEREO / MID / SIDE.
+    /// M/S: палец вниз — следующий режим (30 px на режим), тап — меню STEREO / MID / SIDE.
     private func msField(_ b: EqBand?) -> some View {
         let k: Int = model.eqBand
         return EqField(label: "M/S", value: b.map { EqFormat.ms($0) } ?? "—", enabled: b != nil, pxPerUnit: 30,
@@ -381,7 +381,7 @@ struct EqBar: View {
                        model: model)
     }
 
-    /// DYN (как в вебе): только тап — меню источника с THRESHOLD и RANGE; у cut и notch — «—».
+    /// DYN: только тап — меню источника с THRESHOLD и RANGE; у cut и notch — «—».
     private func dynField(_ b: EqBand?) -> some View {
         let has: Bool = b.map { EqSpec.hasGain($0.type) } ?? false
         return EqField(label: "DYN", value: b.map { model.eqDynName($0) } ?? "—", enabled: has, pxPerUnit: 100000,
@@ -511,7 +511,7 @@ struct EqListenButton: View {
 }
 
 /// Меню полосы: типы (порядок меню), крутизна среза (только у cut), ON/OFF (вкл./выкл. полосы — решение
-/// пользователя, в вебе это двойной тап), DELETE (красная). Внутри поля EQ у точки или под
+/// пользователя), DELETE (красная). Внутри поля EQ у точки или под
 /// полем TYPE; тап мимо — закрыть.
 struct EqBandMenu: View {
     static let width: CGFloat = 390

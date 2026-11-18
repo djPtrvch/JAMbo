@@ -247,7 +247,7 @@ public enum MonitorDesign {
             identity(out)
             return
         }
-        // У EqCoeffs Q срезов — в dB (как у Web Audio).
+        // У EqCoeffs Q срезов — в dB.
         let q: Double = EqSpec.isCut(b.type) ? 20 * log10(b.q) : b.q
         EqCoeffs.coeffs(b.type, b.freq, b.gain, q, sr, out)
     }

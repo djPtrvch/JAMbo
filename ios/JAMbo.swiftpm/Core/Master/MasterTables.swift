@@ -1,9 +1,9 @@
 import Foundation
 
-// Таблицы мастера — как при загрузке public/saturator-worklet.js и public/limiter-worklet.js. Оверсэмплер 4× и
-// антипроизводная tanh — общие с Drive (DriveTables: тот же oversampler.js и та же таблица Симпсона); здесь —
+// Таблицы мастера (сатуратор и лимитер). Оверсэмплер 4× и
+// антипроизводная tanh — общие с Drive (DriveTables: тот же оверсэмплер и та же таблица Симпсона); здесь —
 // антипроизводная EDGE, компенсация громкости сатуратора (3 типа × шаг 0,1 dB до 24 dB) и FIR true peak лимитера
-// (окно Блэкмана, фазы Float32, как Float32Array веба). Строятся один раз (shared, вне колбэка).
+// (окно Блэкмана, фазы Float32). Строятся один раз (shared, вне колбэка).
 
 public final class MasterTables: @unchecked Sendable {
     static let tubeBias: Double = 0.35
@@ -51,7 +51,7 @@ public final class MasterTables: @unchecked Sendable {
 
     static func edgeY(_ u: Double) -> Double { return u / sqrt(sqrt(1 + u * u * u * u)) }
 
-    /// Кривая окна сатуратора (TRANSFER, curveFn веба без BIAS и OUTPUT): выход нелинейности type при входе x и DRIVE
+    /// Кривая окна сатуратора (TRANSFER): выход нелинейности type при входе x и DRIVE
     /// driveDb, делённый на компенсацию громкости c (та же таблица, что в колбэке). Без TONE и MIX.
     public func satCurve(_ type: Int, driveDb: Double, _ x: Double) -> Double {
         let top: Double = Double(MasterTables.compN) * MasterTables.compStepDb
@@ -89,7 +89,7 @@ public final class MasterTables: @unchecked Sendable {
         t[compN + 1] = t[compN]
     }
 
-    /// Полифазный FIR лимитера: окно Блэкмана × sinc, каждая фаза нормирована к 1 (в Float32, как в вебе).
+    /// Полифазный FIR лимитера: окно Блэкмана × sinc, каждая фаза нормирована к 1 (в Float32).
     static func makeLimFir(_ out: UnsafeMutablePointer<Double>) {
         let taps = limTaps
         let n = 4 * taps

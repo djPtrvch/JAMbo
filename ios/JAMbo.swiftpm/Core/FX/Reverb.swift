@@ -1,13 +1,13 @@
 import Foundation
 
-// Reverb — перенос public/reverb-worklet.js 1:1: гибрид пластины и зала, стерео вход и выход.
+// Reverb: гибрид пластины и зала, стерео вход и выход.
 // Цепь: вход → LOW CUT (HPF 2-го порядка) → HIGH CUT (LPF 14 кГц) → пред-задержка (4 + 0,22 × SIZE мс + predelay) →
 // входная диффузия (4 all-pass на канал, Даттерро) → FDN из 8 линий (L — в линии 0, 2, 4, 6; R — в 1, 3, 5, 7;
 // матрица Хаусхолдера; в линии — затухание и НЧ-демпфирование по Жо; длины качают LFO 0,1–0,9 Гц) → выход;
 // ранние отражения — 12 отводов на канал после пред-задержки. TONE — затухание ВЧ (на 8 кГц DECAY × r) и полка
 // 6 кГц ±4 dB. Параметры — k-rate: size (0–100), decay (с), tone (−100…100), lowcut (Гц), predelay (мс);
 // DECAY, TONE, LOW CUT, пред-задержка сглаживаются за 50 мс, SIZE — длины скользят за 150 мс.
-// Расчёт — Double, как JS; буферы — Float (Float32Array). Горячий цикл — по правилам отладочной сборки.
+// Расчёт — Double; буферы — Float. Горячий цикл — по правилам отладочной сборки.
 
 public final class FxReverb {
     // Константы (REVERB_CONST).
@@ -96,7 +96,7 @@ public final class FxReverb {
     let modDepth: Double
     let ret: Double
 
-    /// seed — генератор фаз LFO линий (как Math.random веба).
+    /// seed — генератор фаз LFO линий.
     public init(sampleRate: Double, seed: UInt32) {
         sr = sampleRate
         let k: Double = sampleRate / 48000
@@ -115,7 +115,7 @@ public final class FxReverb {
         erR = UnsafeMutablePointer<Float>.allocate(capacity: erLen)
         erL.initialize(repeating: 0, count: erLen)
         erR.initialize(repeating: 0, count: erLen)
-        // Отводы: знаки чередуются, усиления спадают; сумма модулей — 1 (Float32Array в вебе).
+        // Отводы: знаки чередуются, усиления спадают; сумма модулей — 1 (Float32).
         var g = [Double](repeating: 0, count: 12)
         var sum: Double = 0
         for i in 0..<12 {
@@ -242,7 +242,7 @@ public final class FxReverb {
         }
     }
 
-    /// Коэффициенты LOW CUT и полки TONE — при изменении (как строка-подпись веба: округление до 0,1).
+    /// Коэффициенты LOW CUT и полки TONE — при изменении (округление до 0,1).
     func updateFilters() {
         let sig: (Double, Double) = (FxReverb.jsRound(lowcut * 10), FxReverb.jsRound(tone * 10))
         if sig == coefSig { return }
@@ -251,7 +251,7 @@ public final class FxReverb {
         FxReverb.shelf(kSh, FxReverb.shelfHz, sr, (FxReverb.shelfDb * tone) / 100)
     }
 
-    /// Math.round: половина — вверх.
+    /// Округление: половина — вверх.
     static func jsRound(_ x: Double) -> Double { return (x + 0.5).rounded(.down) }
 
     /// Покой (S14b, FxRack): линии и фильтры с нуля, ручки при пробуждении — сразу целевые (как новый Reverb).
@@ -275,7 +275,7 @@ public final class FxReverb {
         lp.update(repeating: 0, count: 8)
     }
 
-    /// Блок n отсчётов: вход (nil — тишина) → outL/outR (перезаписывает). Параметры — как AudioParam (Float).
+    /// Блок n отсчётов: вход (nil — тишина) → outL/outR (перезаписывает). Параметры — Float.
     public func process(inL: UnsafePointer<Float>?, inR: UnsafePointer<Float>?, outL: UnsafeMutablePointer<Float>,
                         outR: UnsafeMutablePointer<Float>, frames n: Int, size sIn: Float, decay dIn: Float,
                         tone tIn: Float, lowcut lIn: Float, predelay pIn: Float) {

@@ -1,6 +1,6 @@
 import Foundation
 
-// Единая таблица параметров (как src/params.ts веба): подписи ручек, диапазоны, значения по умолчанию, форматы.
+// Единая таблица параметров: подписи ручек, диапазоны, значения по умолчанию, форматы.
 // Меняем подписи и диапазоны только здесь.
 
 public enum KnobKind: Sendable {
@@ -26,7 +26,7 @@ public final class ParamDef: @unchecked Sendable {
     /// Подписи пунктов ступенчатой ручки (значение = индекс).
     public let options: [String]
     /// Пункты ступенчатой ручки с непрерывным значением (WAVE у ANALOG): значение — середина
-    /// пункта на min…max (как steps в params.ts веба).
+    /// пункта на min…max.
     public let steps: Int?
     /// Шаг значения (0,1 dB у мастера).
     public let step: Double?
@@ -60,7 +60,7 @@ public final class ParamDef: @unchecked Sendable {
         self.format = format
     }
 
-    /// Та же шкала без AUTO, OFF и шага (как { ...p, autoTop: undefined } веба).
+    /// Та же шкала без AUTO, OFF и шага.
     private var plain: ParamDef {
         return ParamDef(id: id, label: label, kind: kind, min: min, max: max, def: def, curve: curve, exp: exp,
                         bipolar: bipolar, options: options, steps: steps, format: format)
@@ -371,7 +371,7 @@ public enum Params {
         return trackGrid
     }
 
-    // MARK: — MOD: LFO1–3 и ENV (по дорожкам, MOD_GRID веба)
+    // MARK: — MOD: LFO1–3 и ENV (по дорожкам)
 
     public static let lfoWaves = ["Sine", "Triangle", "Saw", "Square", "Random"]
 
@@ -434,7 +434,7 @@ public enum Params {
     public static let modIds: [String] = modColumns.flatMap { $0 }.map { $0.id }
     public static let modCount = 16
 
-    // MARK: — FX (общие параметры, FX_GRID веба)
+    // MARK: — FX (параметры эффектов)
 
     /// Время Delay в долях такта: подпись и длительность в четвертях.
     public static let delayDivs: [(name: String, beats: Double)] = [
@@ -456,7 +456,7 @@ public enum Params {
 
     public static let fxColumns: [[ParamDef]] = [
         [
-            // По умолчанию 40 % (решение пользователя, в вебе — 50).
+            // По умолчанию 40 % (решение пользователя).
             smooth("rev.size", "Rev Size", 0, 100, 30, Fmt.pct),
             smooth("rev.decay", "Rev Decay", 0.1, 20, 1.5, exp: true) { v in String(format: "%.1fs", v) },
             smooth("rev.tone", "Rev Tone", -100, 100, 0, bipolar: true) { v in
@@ -552,7 +552,7 @@ public enum Params {
         return d
     }
 
-    // MARK: — Мастер (MST, MASTER_GRID веба): колонки SAT, COMP, CLIP, LIM; без p-lock
+    // MARK: — Мастер (MST): колонки SAT, COMP, CLIP, LIM; без p-lock
 
     /// dB мастера: знак «+» выше нуля, единица — второй строкой.
     static func masterDb(_ v: Double) -> String {
@@ -612,7 +612,7 @@ public enum Params {
         return "\(Int(v.rounded())) Hz"
     }
 
-    /// Параметры окон модулей мастера без ручек (MASTER_EXTRA веба без убранных в S5a): только поля окна и пресеты,
+    /// Параметры окон модулей мастера без ручек : только поля окна и пресеты,
     /// p-lock и LFO/ENV не принимают.
     public static let masterExtra: [ParamDef] = [
         master("sat.focus", "Focus", 20, 2000, 20, exp: true, masterHz),

@@ -1,4 +1,4 @@
-// История UNDO / REDO (как edit / beginGesture в state.ts веба): снимок проекта до действия.
+// История UNDO / REDO: снимок проекта до действия.
 // Проект — значение (struct), поэтому снимок — просто копия (copy-on-write: общие страницы не копируются).
 
 public struct History<T: Equatable> {

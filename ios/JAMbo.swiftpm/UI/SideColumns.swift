@@ -8,7 +8,7 @@ struct LeftColumn: View {
         VStack(spacing: Layout.gap) {
             LeftTop(model: model)
             if model.channel == .master {
-                // По цепочке (решение пользователя, в вебе CLIP, LIM / SAT, COMP): SAT снизу слева, над ним COMP,
+                // По цепочке (решение пользователя): SAT снизу слева, над ним COMP,
                 // справа от него CLIP, под CLIP — LIM.
                 AnyView(VStack(spacing: Layout.gap) {
                     ButtonPair(left: MasterButton(model: model, module: MasterScope.comp),

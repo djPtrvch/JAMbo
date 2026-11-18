@@ -1,4 +1,4 @@
-// Правки дорожки (как в state.ts веба): страницы (добавить, меню страницы), p-lock, триги.
+// Правки дорожки: страницы (добавить, меню страницы), p-lock, триги.
 
 extension Track {
     /// Изменение числа страниц: при полной длине длина растёт вместе со страницами; если играли все — играют все.
@@ -367,7 +367,7 @@ extension Project {
     public static let mstSeq = 1
 
     /// PASTE дорожки на место i: только настройки скопированной (звук, ручки, назначения LFO/ENV, EQ, папка, громкость);
-    /// имя, клипы сетки, ход игры, mute, solo и номер id — свои (решение пользователя, S14; в вебе — с паттернами и именем).
+    /// имя, клипы сетки, ход игры, mute, solo и номер id — свои (решение пользователя, S14).
     public mutating func pasteTrack(_ i: Int, _ c: Track) {
         guard i >= 0 && i < tracks.count else { return }
         let old = tracks[i]
@@ -401,7 +401,7 @@ extension Project {
     }
 }
 
-// MARK: — MORPH (как targetTracks и undoTrackEdits веба)
+// MARK: — MORPH
 
 extension Track {
     /// Ручку id меняют в режиме MORPH: исходное значение — при первом изменении.

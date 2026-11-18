@@ -1,14 +1,13 @@
 import Foundation
 
-// Лимитер мастера — перенос public/limiter-worklet.js (решение пользователя S5a: без LINK, UNITY, AUDIT — LINK 100 %,
-// как по умолчанию в вебе: один gain computer по максимуму L и R, звук тот же). Стерео. UNITY (16.11) —
+// Лимитер мастера (решение пользователя S5a: без LINK, UNITY, AUDIT — LINK 100 %: один gain computer по максимуму L и R, звук тот же). Стерео. UNITY (16.11) —
 // MasterChain.applyUnity, после метров.
 // GUARD (16.11): средний GR (за ~1 с) выше предела — вход убавляется на 1 dB/с (до 12 dB); ниже предела на 1 dB
 // дольше 2 с — возврат 0,3 dB/с, не выше INPUT; OFF — возврат 3 dB/с.
 // Вход · GAIN → true peak (4× полифазный FIR, окно Блэкмана) → цель g = min(1, Ceiling/Peak) → скользящий минимум
 // за окно lookahead + HOLD → релиз (вниз мгновенно, вверх — экспонента RELEASE или AUTO 30 мс / 400 мс) → скользящее
 // среднее окна (рампа к цели) → задержанный сигнал · g → страховочный клип на CEILING. BYPASS — кроссфейд 10 мс
-// с тем же задержанным входом; смена LOOKAHEAD — кроссфейд задержек 20 мс. Буферы задержки и FIR — Float32, как в вебе.
+// с тем же задержанным входом; смена LOOKAHEAD — кроссфейд задержек 20 мс. Буферы задержки и FIR — Float32.
 // Индикация (S5c): за кадр 256 отсчётов — true peak после GAIN, GR (dB), true peak выхода.
 
 /// Gain computer: история цели и рампы, монотонная очередь скользящего минимума.
@@ -223,7 +222,7 @@ public final class MasterLimiter {
         hOut.deallocate()
     }
 
-    /// Окно lookahead в отсчётах (Math.round, как в вебе).
+    /// Окно lookahead в отсчётах (округление: половина — вверх).
     static func look(_ ms: Double, _ sr: Double, _ maxL: Int) -> Int {
         let v = Int(((ms / 1000) * sr + 0.5).rounded(.down))
         return Swift.max(1, Swift.min(maxL - LimiterGain.hold - 1, v))
@@ -237,7 +236,7 @@ public final class MasterLimiter {
     func truePeak(_ h: UnsafeMutablePointer<Double>, _ pos: inout Int, _ l: Double, _ r: Double) -> Double {
         let T = MasterLimiter.taps
         let p = pos
-        // Значения Float (как Float32Array веба) хранятся в Double: без преобразования на каждом отводе (S14b).
+        // Значения Float хранятся в Double: без преобразования на каждом отводе (S14b).
         let fl = Double(Float(l)), fr = Double(Float(r))
         h[p] = fl
         h[p + T] = fl

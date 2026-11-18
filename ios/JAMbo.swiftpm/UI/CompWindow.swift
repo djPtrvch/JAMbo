@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Дисплей окна компрессора (comp.ts веба): TRANSFER (не шире 40 %) | LEVEL | блок COMP. У TRANSFER и LEVEL одна
+/// Дисплей окна компрессора: TRANSFER (не шире 40 %) | LEVEL | блок COMP. У TRANSFER и LEVEL одна
 /// шкала по высоте (0…−48 dB), линии сетки и пунктир порога — на одной высоте.
 struct CompDisplay: View {
     let model: AppModel

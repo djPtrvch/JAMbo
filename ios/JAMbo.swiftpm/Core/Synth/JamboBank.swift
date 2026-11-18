@@ -56,7 +56,7 @@ final class JamboBank {
         grainTracks.deallocate()
     }
 
-    /// Нота своего движка в голосе v (trigger в worklet); now — абсолютный кадр, tau — время дорожки с дрейфом.
+    /// Нота своего движка в голосе v ; now — абсолютный кадр, tau — время дорожки с дрейфом.
     @inline(__always)
     func jamboTrigger(_ v: Int, _ e: Int, note: Double, _ p1: Double, _ p2: Double, _ p3: Double, _ p4: Double,
                       decay: Double, now: Double, tau: Double) {
@@ -85,7 +85,7 @@ final class JamboBank {
         jambo[v].setAnalog(mode: mode, oct: oct)
     }
 
-    /// Ручки звучащей ноты (mod в worklet; сглаживание — в голосе).
+    /// Ручки звучащей ноты (сглаживание — в голосе).
     @inline(__always)
     func jamboSet(_ v: Int, note: Double, _ p1: Double, _ p2: Double, _ p3: Double, _ p4: Double, decay: Double) {
         let k = kind[v]
@@ -113,7 +113,7 @@ final class JamboBank {
         jambo[v].render(out, n, driftRatio: driftRatio, table: table)
     }
 
-    /// Голос молчал: хвоста KICK для стыка нет (vo.last = 0 в worklet).
+    /// Голос молчал: хвоста KICK для стыка нет.
     @inline(__always)
     func jamboSilent(_ v: Int) {
         jambo[v].last = 0

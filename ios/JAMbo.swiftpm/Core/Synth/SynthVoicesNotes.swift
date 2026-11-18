@@ -87,7 +87,7 @@ extension SynthVoices {
         return (base + c, true)
     }
 
-    /// Та же нота продолжает державшуюся: прежняя гаснет вместе с атакой новой (legatoCut веба).
+    /// Та же нота продолжает державшуюся: прежняя гаснет вместе с атакой новой.
     func legatoCut(_ t: Int, _ notes: UnsafePointer<Int16>, _ count: Int, _ at: Int64, _ attack: Double) {
         let tol = Int64(0.005 * sr)
         let base = t * SynthVoices.perTrack

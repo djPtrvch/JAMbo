@@ -1,6 +1,6 @@
 import Foundation
 
-// Файл проекта и хранилище проектов (S9a; как storage.ts веба, вместо IndexedDB — файлы):
+// Файл проекта и хранилище проектов (S9a, файлы):
 // Application Support/Projects/<id>.json. Сэмплы — отдельно, по ключу (Samples/<ключ>.caf, SampleStore);
 // проект ссылается на ключи. Autosave — отдельная запись (id autosave), основную запись меняют только SAVE,
 // SAVE AS и RENAME.
@@ -61,7 +61,7 @@ public struct ProjectFile: Codable, Equatable, Sendable {
 
 public enum ProjectFormat {
     public static let name = "jambo-swift"
-    /// Версия формата файла. Новая версия — шаг миграции в migrate (как fromVersion в normalizeDoc веба);
+    /// Версия формата файла. Новая версия — шаг миграции в migrate;
     /// новые поля с значениями по умолчанию миграции не требуют (ProjectCoding).
     public static let version = 1
 

@@ -137,7 +137,7 @@ struct TrackFace: View, Equatable {
     }
 
     var body: some View {
-        // Как в вебе: выбранная — жёлтый контур, заглушённая — красный (перекрывает выбор) и красная заливка.
+        // выбранная — жёлтый контур, заглушённая — красный (перекрывает выбор) и красная заливка.
         let border: Color = mute ? theme.rec : (selected ? theme.accent : Color.clear)
         ZStack(alignment: .topTrailing) {
             // Выбранная дорожка — имя крупнее и жирнее; невыбранные — как MIX и MST (12, semibold, разрядка); цвет — белый.

@@ -1,11 +1,11 @@
 import SwiftUI
 
-/// Измеритель справа и метры MIX вне колбэка (как Meter.read веба): 60 раз в секунду (drain) — новые блоки
+/// Измеритель справа и метры MIX вне колбэка: 60 раз в секунду (drain) — новые блоки
 /// из Levels, спад полосы ×0,9 за кадр, пик-холд 1,5 с (затем ×0,95 за кадр), метка клиппинга 2 с, наибольший
 /// пик с последнего сброса; канал измерителя — выбранная дорожка, при MIX и MST — выход мастера.
 final class MeterState {
     static let channels = Levels.channels
-    /// Пик ≥ этого — перегруз (OVER_PEAK веба).
+    /// Пик ≥ этого — перегруз.
     static let over: Float = 0.999
     private(set) var disp = [Float](repeating: 0, count: MeterState.channels * 2)
     private(set) var hold = [Float](repeating: 0, count: MeterState.channels * 2)

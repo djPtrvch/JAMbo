@@ -1,6 +1,6 @@
 import Foundation
 
-// Настройки MIDI (бутерброд → MIDI, S13a; как settings.midiIn веба): в AppSettings, общие для проектов.
+// Настройки MIDI (бутерброд → MIDI, S13a): в AppSettings, общие для проектов.
 // Устройства — по uniqueID CoreMIDI (не меняется при переподключении). Канал и маршрут нот — у каждой дорожки
 // (TrackMidi; прежние noteChannel и noteRoute при чтении пропускаются).
 
@@ -36,7 +36,7 @@ public struct MidiSettings: Codable, Equatable, Sendable {
         return Int.min + 1 + (track * 16 + channel) * 128 + note
     }
 
-    /// Сила ноты 0…1 (с VELOCITY; без него — полная, как в вебе).
+    /// Сила ноты 0…1 (с VELOCITY; без него — полная).
     public static func velocity(_ v: Int, sensitive: Bool) -> Double {
         return sensitive ? Double(max(1, min(127, v))) / 127 : 1
     }
