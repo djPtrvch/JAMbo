@@ -39,7 +39,7 @@
 |---|---|
 | раскладки экрана, верхней панели, кнопок, сетки ручек 4×4, режимов дорожка и MIX | docs/ai/ui-layout.md |
 | дорожек: добавление, удаление, перестановка, mute/solo, запись стемов | docs/ai/tracks-mixer.md |
-| p-lock, секвенсора, страниц, пианоролла, MOD, назначения LFO/ENV | docs/ai/sequencer.md |
+| p-lock, секвенсора, страниц, пианоролла, CHORD и арпеджиатора (ARP, только Swift), MOD, назначения LFO/ENV | docs/ai/sequencer.md |
 | автоматизации (AUTO) | docs/ai/automation.md |
 | голоса сэмпла и синта, редактора сэмпла, библиотеки | docs/ai/sound-sampler.md |
 | движков синта (Plaits и свои), таблицы движков, иконок | docs/ai/synth-engines.md |
