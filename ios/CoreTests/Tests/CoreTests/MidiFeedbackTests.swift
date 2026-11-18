@@ -25,15 +25,18 @@ final class MidiFeedbackTests: XCTestCase {
         XCTAssertEqual(m.feedbackValue(0.3), 0)
     }
 
-    /// Порт: Default — выход из DEVICES, None — нет, свой — свой.
+    /// Порт: Default — выход из DEVICES, None — нет, свой — свой, по имени — все выходы с этим именем.
     func testDest() {
         var m = MidiMapping(src: cc20, target: .button("PLAY"), continuous: false)
-        XCTAssertEqual(m.feedbackDest(default: 5), 5)
-        XCTAssertNil(m.feedbackDest(default: nil))
+        let outs: [(id: Int32, name: String)] = [(3, "SMC-PAD"), (4, "Synth"), (7, "smc-pad 2")]
+        XCTAssertEqual(m.feedbackDests(default: 5, outputs: outs), [5])
+        XCTAssertEqual(m.feedbackDests(default: nil, outputs: outs), [])
         m.port = .none
-        XCTAssertNil(m.feedbackDest(default: 5))
+        XCTAssertEqual(m.feedbackDests(default: 5, outputs: outs), [])
         m.port = .device(9)
-        XCTAssertEqual(m.feedbackDest(default: 5), 9)
+        XCTAssertEqual(m.feedbackDests(default: 5, outputs: outs), [9])
+        m.port = .named("SMC-PAD")
+        XCTAssertEqual(m.feedbackDests(default: 5, outputs: outs), [3, 7])
     }
 
     /// Только изменения; другой выход или источник — свои значения; после reset — всё заново.

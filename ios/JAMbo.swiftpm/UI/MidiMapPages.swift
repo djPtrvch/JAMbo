@@ -118,6 +118,7 @@ struct MidiMapOptions: View {
         var out: [MidiOption] = [opt("def", "Default (\(def))", m.port == .standard) { $0.port = .standard },
                                  opt("none", "None", m.port == .none) { $0.port = .none }]
         for d in devices { out.append(opt("\(d.id)", d.name, m.port == .device(d.id)) { $0.port = .device(d.id) }) }
+        if case .named(let n) = m.port { out.append(opt("named", "All " + n, true) { _ in }) }
         return out
     }
 
@@ -235,12 +236,13 @@ struct MidiPresetPage: View {
     let model: AppModel
 
     var body: some View {
-        let own: String = model.settings.midi.preset
-        let list: [MidiPreset] = model.midiLearn.presets.list
+        let cur: String = model.settings.midi.preset
+        // Встроенный (SMC-PAD ×2) — первым; сохранить в него, переименовать и удалить нельзя.
+        let own: String = Controllers.isBuiltIn(cur) ? "" : cur
+        let list: [MidiPreset] = Controllers.presets + model.midiLearn.presets.list
         return VStack(alignment: .leading, spacing: 4) {
-            if list.isEmpty { SettingsNote(text: "No presets yet.") }
             ForEach(list, id: \.name) { p in
-                MidiMapLine(label: p.name + (p.name == own ? "  ✓" : ""), value: "\(p.mappings.count)") {
+                MidiMapLine(label: p.name + (p.name == cur ? "  ✓" : ""), value: "\(p.mappings.count)") {
                     model.loadMidiPreset(p.name)
                     model.midiLearn.mapPage = .main
                 }
