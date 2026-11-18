@@ -50,9 +50,7 @@ public struct SynthPreset: Codable, Equatable, Sendable {
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         name = c.value(.name, "")
-        // Пресет движка, которого нет в таблице, — пустой.
-        let snd: String = c.value(.sound, "")
-        sound = SynthKey.isRemoved(snd) ? "" : snd
+        sound = c.value(.sound, "")
         params = c.value(.params, [String: Double]())
         fmt = c.optional(.fmt)
         // fmt < 3 — до S12: ручки своих движков по SynthMigration (1.4).

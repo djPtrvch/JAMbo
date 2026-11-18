@@ -233,7 +233,7 @@ public final class Sampler: RenderJobs {
         gateCur.initialize(repeating: -1, count: SoundData.maxTracks)
         one.initialize(to: 0)
         scratch.initialize(repeating: 0, count: VoiceParam.count)
-        // Незанятые номера — 0: такой звук не синт и не сэмпл (пустой).
+        // Номера без движка — 0: такой звук не синт.
         synthHash.initialize(repeating: 0, count: SynthEngines.count)
         for e in SynthEngines.all { synthHash[e.id] = SoundKey.hash(SynthKey.key(e.id)) }
     }

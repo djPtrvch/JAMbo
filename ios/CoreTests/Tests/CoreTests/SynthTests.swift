@@ -5,12 +5,6 @@ import XCTest
 final class SynthTests: XCTestCase {
     func testSynthKey() {
         XCTAssertEqual(SynthKey.key(17), "mi:17")
-        // Движков Mutable Instruments (0–15) нет: такие ключи — не синт.
-        XCTAssertNil(SynthKey.engine("mi:0"))
-        XCTAssertNil(SynthKey.engine("mi:15"))
-        XCTAssertTrue(SynthKey.isRemoved("mi:3"))
-        XCTAssertFalse(SynthKey.isRemoved("mi:17"))
-        XCTAssertFalse(SynthKey.isRemoved(""))
         XCTAssertEqual(SynthKey.engine("mi:16"), 16)
         XCTAssertEqual(SynthKey.engine("mi:19"), 19)
         XCTAssertEqual(SynthKey.engine("mi:20"), 20)
@@ -72,36 +66,6 @@ final class SynthTests: XCTestCase {
         XCTAssertEqual(Params.grid(sound: t.sample)[0].label, "Ratio")
     }
 
-    /// Проект и пресеты со звуками движков Mutable Instruments загружаются пустыми (S12); свои движки остаются.
-    func testRemovedEnginesLoadEmpty() throws {
-        var p = Project()
-        p.tracks[0].sample = "mi:3"
-        p.tracks[0].params["harm"] = 70
-        p.tracks[1].sample = "mi:17"
-        var st = Step()
-        st.on = true
-        st.notes = [60]
-        st.sound = "mi:12"
-        st.locks = ["harm": 20, "decay": 300]
-        st.soundLocks = ["harm"]
-        p.tracks[1].clips[0]!.pages[0][0] = st
-        p.tracks[1].folder = Folder(items: [FolderItem(preset: SynthPreset(name: "Old", sound: "mi:5", params: [:])),
-                                            FolderItem(preset: SynthPreset(name: "New", sound: "mi:18", params: [:]))])
-        let data = try JSONEncoder().encode(p)
-        var q = try JSONDecoder().decode(Project.self, from: data)
-        q.repair()
-        XCTAssertEqual(q.tracks[0].sample, "")
-        XCTAssertEqual(q.tracks[0].params["harm"], 70, "ручки дорожки остаются")
-        XCTAssertEqual(q.tracks[1].sample, "mi:17")
-        let s0 = try XCTUnwrap(q.tracks[1].clips[0]?.pages[0][0])
-        XCTAssertNil(s0.sound, "пресет-лок снят — шаг играет звук дорожки")
-        XCTAssertNil(s0.soundLocks)
-        XCTAssertEqual(s0.locks, ["decay": 300], "p-lock пресета сняты, ручной остался")
-        XCTAssertEqual(q.tracks[1].folder.items.map { $0.preset?.sound }, ["", "mi:18"])
-        var t = Track(index: 2)
-        t.applyItem(FolderItem(sample: "mi:9"))
-        XCTAssertEqual(t.sample, "", "прежняя папка: ключ без движка — пустой звук")
-    }
 
     // MARK: — голоса синта (звук)
 
@@ -187,17 +151,6 @@ final class SynthTests: XCTestCase {
         XCTAssertEqual(c.sampler.synth?.engine[0], 18)
     }
 
-    /// Звук движка, которого нет (mi:3 — Mutable Instruments): тишина, голоса синта не заняты.
-    func testRemovedEngineSilent() throws {
-        var p = Project()
-        p.tracks[0].vol = 0
-        p.tracks[0].sample = "mi:3"
-        let c = try core(p)
-        c.events.push(.noteOn(track: 0, note: 60, id: 1, velocity: 1))
-        let x = render(c, frames: 4800)
-        XCTAssertEqual(c.sampler.synth?.activeCount, 0)
-        XCTAssertLessThan(peak(x, 0, 4800), 1e-6)
-    }
 
     func testEngineChangeRetriggersHeldNote() throws {
         var p = synthProject(17)

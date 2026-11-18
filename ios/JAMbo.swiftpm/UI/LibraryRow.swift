@@ -99,7 +99,7 @@ struct LibRow: View {
         case .sample:
             return "sample"
         case .preset:
-            // Пресет движка, которого нет в таблице, — просто «preset».
+            // Движок не найден — просто «preset».
             guard let e = node.preset.flatMap({ SynthKey.engine($0.sound) }) else { return "preset" }
             return SynthEngines.engine(e)?.name ?? "preset"
         }
