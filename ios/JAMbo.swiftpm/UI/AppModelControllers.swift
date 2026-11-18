@@ -38,7 +38,7 @@ extension AppModel {
         }
     }
 
-    /// JamboPad, разъём MIDI OUT (SET_MIDI_OUT): хранится в настройках, сразу уходит на все SMC-PAD.
+    /// JAMboPAD, разъём MIDI OUT (SET_MIDI_OUT): хранится в настройках, сразу уходит на все SMC-PAD.
     func setPadMidiOut(thru: Int? = nil, controls: Bool? = nil) {
         setMidi { s in
             if let t = thru { s.padThru = t }

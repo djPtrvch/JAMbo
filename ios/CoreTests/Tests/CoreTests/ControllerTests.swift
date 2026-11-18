@@ -1,7 +1,7 @@
 import XCTest
 @testable import Core
 
-/// SysEx в UMP и JamboPad (SET_SCALE, SET_MIDI_OUT, ROOT, пресет SMC-PAD ×2).
+/// SysEx в UMP и JAMboPAD (SET_SCALE, SET_MIDI_OUT, ROOT, пресет SMC-PAD ×2).
 final class ControllerTests: XCTestCase {
     /// 5 байт — одно сообщение; 8 — начало и конец; 13 — начало, продолжение, конец; чтение собирает обратно.
     func testSysExRoundTrip() {

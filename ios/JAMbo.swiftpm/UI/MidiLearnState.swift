@@ -143,7 +143,7 @@ struct MidiRuntime {
     var feedback = MidiFeedback()
     var feedbackHold: [MidiSource: Double] = [:]
     var feedbackGen: Int = -1
-    /// Контроллеры (JamboPad): отправленное состояние и поколение выходов при отправке.
+    /// Контроллеры (JAMboPAD): отправленное состояние и поколение выходов при отправке.
     var controllerState: ControllerState? = nil
     var controllerGen: Int = -1
     /// MIDI-клок (S13e): SEND — планировщик; RECEIVE — входящий клок, шаг последней поправки фазы, игра на

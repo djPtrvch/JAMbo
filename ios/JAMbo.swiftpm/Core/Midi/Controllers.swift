@@ -1,6 +1,6 @@
 import Foundation
 
-// Контроллеры со своим протоколом (JamboPad; позже — Launchpad X и др.). Общее — здесь и в приложении: поиск выходов
+// Контроллеры со своим протоколом (JAMboPAD; позже — Launchpad X и др.). Общее — здесь и в приложении: поиск выходов
 // по имени, отправка состояния при его смене и при подключении, приём событий, встроенный пресет маппингов.
 // Своё у контроллера — только описание (MidiController): какие байты слать и как читать ответы.
 
@@ -58,7 +58,7 @@ public enum Controllers {
     }
 }
 
-/// JamboPad — два M-Vave SMC-PAD со своей прошивкой (протокол — djPtrvch/SMC-Pad-Controller, docs/sysex.md и
+/// JAMboPAD (тип JamboPad) — два M-Vave SMC-PAD со своей прошивкой (протокол — djPtrvch/SMC-Pad-Controller, docs/sysex.md и
 /// docs/jambo.md): F0 7D 4A 50 <cmd> <data…> F7.
 public struct JamboPad: MidiController {
     public static let header: [UInt8] = [0x7D, 0x4A, 0x50]
@@ -69,7 +69,7 @@ public struct JamboPad: MidiController {
 
     public init() {}
 
-    public var name: String { return "JAMboPad" }
+    public var name: String { return "JAMboPAD" }
     public var portName: String { return "SMC-PAD" }
     /// SET_SCALE — на все выходы (по протоколу; другие устройства SysEx с ID 7D пропускают).
     public var stateToAll: Bool { return true }

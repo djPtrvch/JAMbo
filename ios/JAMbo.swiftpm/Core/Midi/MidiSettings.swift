@@ -14,7 +14,7 @@ public struct MidiSettings: Codable, Equatable, Sendable {
     /// Нажатие ручки (KNOB c.r PRESS) — как палец на ручке: нажатие — касание, двойное — двойной тап (по умолчанию);
     /// OFF — действие из окна MIDI MAP (Action). Решение пользователя.
     public var pressTouch: Bool = true
-    /// JamboPad, разъём MIDI OUT (SET_MIDI_OUT): 0 OFF, 1 CLOCK (по умолчанию в пэде), 2 ALL; сообщения пэдов — туда же.
+    /// JAMboPAD, разъём MIDI OUT (SET_MIDI_OUT): 0 OFF, 1 CLOCK (по умолчанию в пэде), 2 ALL; сообщения пэдов — туда же.
     public var padThru: Int = 1
     public var padControls: Bool = false
 

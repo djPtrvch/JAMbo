@@ -199,7 +199,7 @@ struct MidiMapRow: View {
     }
 }
 
-/// JAMBOPAD (два SMC-PAD со своей прошивкой): разъём MIDI OUT пэдов (SET_MIDI_OUT — сразу на все SMC-PAD).
+/// JAMboPAD (два SMC-PAD со своей прошивкой): разъём MIDI OUT пэдов (SET_MIDI_OUT — сразу на все SMC-PAD).
 /// Гамма уходит пэдам сама; пресет маппингов — SMC-PAD ×2 в окне MIDI MAP (Preset).
 struct JamboPadSection: View {
     let model: AppModel
@@ -215,7 +215,7 @@ struct JamboPadSection: View {
         let pads: Int = self.pads
         let toggle: (Bool) -> Void = { (on: Bool) in m.setPadMidiOut(controls: on) }
         let rows: [FormRow] = [
-            .head("JAMBOPAD"),
+            .head("JAMboPAD"),
             .label("PAD MIDI OUT"),
             .choices(thru),
             .toggle("PAD MESSAGES TO MIDI OUT", ms.padControls, toggle),
