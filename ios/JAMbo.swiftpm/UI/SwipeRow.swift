@@ -92,23 +92,18 @@ struct SwipeRow: View {
         .contentShape(Rectangle())
     }
 
+    /// Значки справа — списком (EXPORT, RENAME, DELETE или RESTORE): один вид на все.
     private var actions: some View {
-        HStack(spacing: 4) {
-            if let e = export {
-                icon("square.and.arrow.up", Color(hex: 0x8e8e93)) {
+        var items: [(String, Color, () -> Void)] = []
+        if let e = export { items.append(("square.and.arrow.up", Color(hex: 0x8e8e93), e)) }
+        if let r = rename { items.append(("pencil", Color(hex: 0x8e8e93), r)) }
+        items.append((delIcon, delTint ?? theme.rec, delete))
+        return HStack(spacing: 4) {
+            ForEach(items.indices, id: \.self) { k in
+                icon(items[k].0, items[k].1) {
                     close()
-                    e()
+                    items[k].2()
                 }
-            }
-            if let r = rename {
-                icon("pencil", Color(hex: 0x8e8e93)) {
-                    close()
-                    r()
-                }
-            }
-            icon(delIcon, delTint ?? theme.rec) {
-                close()
-                delete()
             }
         }
     }

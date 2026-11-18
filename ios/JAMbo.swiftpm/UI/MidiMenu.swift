@@ -7,19 +7,50 @@ enum MidiTab: String {
     case devices
 }
 
-/// Бутерброд → MIDI (S13a): стрелка назад и «MIDI», кнопка DEVICES (как прежние вкладки), ниже — с чертой — общее; DEVICES и открытое устройство —
-/// вложенные меню (стрелка назад — на уровень выше).
+/// Бутерброд → MIDI (S13a): стрелка назад и «MIDI», кнопка DEVICES на всю ширину, ниже — с чертой — общее; DEVICES и
+/// открытое устройство — вложенные меню (стрелка назад — на уровень выше). Все уровни — строками FormRows одного вида
+/// (объём сборки: отдельный вид на уровень дороже). Окна: переименование, EXPORT, IMPORT с занятым именем, ошибки IMPORT.
 struct MidiMenuPage: View {
     let model: AppModel
     let back: () -> Void
     let close: () -> Void
+    @State private var text: String = ""
 
     var body: some View {
+        let ml: MidiLearnState = model.midiLearn
+        let m: AppModel = model
+        return AnyView(page)
+            .onChange(of: ml.renaming) { _, n in
+                if let n = n { text = n }
+            }
+            .inputAlert("RENAME", shown: flag(ml.renaming != nil) { ml.renaming = nil }, text: $text) {
+                if let from = ml.renaming { m.renameDevice(from, to: text) }
+                ml.renaming = nil
+            }
+            .fileMover(isPresented: flag(ml.exported != nil) { ml.exported = nil }, file: ml.exported) { _ in ml.exported = nil }
+            .confirmationDialog("\(ml.pending?.name ?? "") already exists", isPresented: flag(ml.pending != nil) { ml.pending = nil },
+                                titleVisibility: .visible) {
+                Button("Replace") { m.importPending(replace: true) }
+                Button("Add copy") { m.importPending(replace: false) }
+                Button("Cancel", role: .cancel) { ml.pending = nil }
+            }
+            .noticeAlert("MIDI devices", shown: flag(ml.note != nil) { ml.note = nil }, message: ml.note ?? "", cancel: false) {
+                ml.note = nil
+            }
+    }
+
+    /// Окно показано, пока есть его значение; закрыли — сбросить.
+    private func flag(_ on: Bool, _ off: @escaping () -> Void) -> Binding<Bool> {
+        return Binding(get: { on }, set: { if !$0 { off() } })
+    }
+
+    private var page: some View {
         let devices: Bool = model.midiLearn.tab == .devices
         let dev: String? = devices ? model.midiLearn.device : nil
         let m: AppModel = model
         let back: () -> Void = self.back
         let title: String = dev ?? (devices ? "DEVICES" : "MIDI")
+        let rows: [FormRow] = dev.map { deviceRows($0) } ?? (devices ? deviceList : general)
         return VStack(alignment: .leading, spacing: 8) {
             MenuBackHeader(title: title, caps: dev == nil) {
                 if dev != nil {
@@ -31,41 +62,22 @@ struct MidiMenuPage: View {
                 }
             }
             MenuScroll {
-                VStack(alignment: .leading, spacing: 8) {
-                    if !devices {
-                        // Кнопка DEVICES — как прежние вкладки (той же ширины), открывает вложенное меню.
-                        HStack(spacing: 4) {
-                            MenuItem(title: "DEVICES", current: false) { m.midiLearn.tab = .devices }
-                            Color.clear.frame(maxWidth: .infinity, maxHeight: 1)
-                        }
-                        Divider().overlay(theme.line).padding(.vertical, 6)
-                    }
-                    section(devices, dev)
-                }
-                .padding(.trailing, 6)
+                FormRows(rows: rows).padding(.trailing, 6)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .modifier(MidiDeviceAlerts(model: model))
     }
 
-    private func section(_ devices: Bool, _ dev: String?) -> AnyView {
-        if let d = dev { return AnyView(MidiDevicePage(model: model, name: d, close: close)) }
-        if devices { return AnyView(MidiDevicesTab(model: model)) }
-        return AnyView(MidiGeneralTab(model: model, close: close))
-    }
-}
-
-/// Меню MIDI: DEVICES (вложенное меню), MIDI LEARN, KNOB PRESS, Bluetooth MIDI. Вход и выход нот — только у дорожек (меню звука → MIDI; 8.11).
-struct MidiGeneralTab: View {
-    let model: AppModel
-    let close: () -> Void
-
-    var body: some View {
+    /// Само меню MIDI: DEVICES, MIDI LEARN, KNOB PRESS, Bluetooth MIDI. Вход и выход нот — только у дорожек (8.11).
+    private var general: [FormRow] {
         let m: AppModel = model
         let close: () -> Void = self.close
         let touch: Bool = m.settings.midi.pressTouch
-        var rows: [FormRow] = [
+        let bt: Bool = BluetoothMidi.available
+        return [
+            // Кнопка DEVICES — на всю ширину, как MIDI LEARN; открывает вложенное меню.
+            .choices([MenuChoice(title: "DEVICES", current: false) { m.midiLearn.tab = .devices }]),
+            .view(AnyView(Divider().overlay(theme.line).padding(.vertical, 6))),
             .choices([MenuChoice(title: "MIDI LEARN", current: false) {
                 close()
                 m.setLearn(true)
@@ -77,56 +89,35 @@ struct MidiGeneralTab: View {
                       MenuChoice(title: "MIDI MAP", current: !touch) { m.setMidi { $0.pressTouch = false } }]),
             .note("TOUCH: a knob’s push button works like a finger on the knob — press to touch, press twice for a double tap; with SHIFT held, a press is SHIFT + tap and holding it 1 s saves the knob’s default. MIDI MAP: each push button runs its own Action set in MIDI MAP — Reset, Param or any button."),
             .note("Note input and output are set on each track: sound menu → MIDI. By default tracks do not receive notes."),
-        ]
-        rows += bluetooth
-        return FormRows(rows: rows)
-    }
-
-    /// BLUETOOTH MIDI (S13f): CONNECT и ADVERTISE — системные окна; без capability Bluetooth — неактивны.
-    private var bluetooth: [FormRow] {
-        let on: Bool = BluetoothMidi.available
-        return [
+            // BLUETOOTH MIDI (S13f): CONNECT и ADVERTISE — системные окна; без capability Bluetooth — неактивны.
             .label("BLUETOOTH MIDI"),
             .choices([
-                MenuChoice(title: "CONNECT", enabled: on, current: false) { BluetoothMidi.connect() },
-                MenuChoice(title: "ADVERTISE", enabled: on, current: false) { BluetoothMidi.advertise() },
+                MenuChoice(title: "CONNECT", enabled: bt, current: false) { BluetoothMidi.connect() },
+                MenuChoice(title: "ADVERTISE", enabled: bt, current: false) { BluetoothMidi.advertise() },
             ]),
-            .note(on ? "CONNECT: find and connect Bluetooth MIDI devices (tap a connected one to disconnect). ADVERTISE: make this iPad visible to other devices as a Bluetooth MIDI device. Connected devices appear in DEVICES."
+            .note(bt ? "CONNECT: find and connect Bluetooth MIDI devices (tap a connected one to disconnect). ADVERTISE: make this iPad visible to other devices as a Bluetooth MIDI device. Connected devices appear in DEVICES."
                   : "Bluetooth access is not enabled in this build."),
         ]
     }
-}
 
-/// DEVICES: встроенные (JAMboPAD) и свои (появляются сами при подключении нового входа). Рычажок — вкл./выкл.
-/// (включённых — сколько угодно, маппинги работают вместе); тап — страница устройства; свайп влево — карандаш и
-/// корзина, у встроенного — RESTORE (изогнутая стрелка); первым — EXPORT файлом. Внизу — IMPORT.
-struct MidiDevicesTab: View {
-    let model: AppModel
-
-    var body: some View {
-        let list: [MidiDevice] = model.settings.midi.devices
-        return VStack(alignment: .leading, spacing: 4) {
-            ForEach(list, id: \.name) { d in
-                MidiDeviceRow(model: model, device: d)
-            }
-            MenuChoiceButtons(items: [MenuChoice(title: "IMPORT", current: false) { model.chooseDeviceFiles() }])
-                .padding(.top, 4)
-            SettingsNote(text: "Turn on the devices you play with: each keeps its own mappings, and all devices that are on work together. A new MIDI device appears here when you connect it. Tap a device to see its mappings and settings; swipe left to export it to a file, rename or delete it (built-in: restore the original mappings). IMPORT loads a device file (.json).")
-                .padding(.vertical, 6)
-        }
-    }
-}
-
-/// Строка устройства: рычажок слева, имя, подключено ли и число маппингов.
-struct MidiDeviceRow: View {
-    let model: AppModel
-    let device: MidiDevice
-
-    var body: some View {
+    /// DEVICES: встроенные (JAMboPAD) и свои (появляются сами при подключении нового входа). Рычажок — вкл./выкл.
+    /// (включённых — сколько угодно, маппинги работают вместе); тап — страница устройства; свайп влево — EXPORT,
+    /// карандаш и корзина, у встроенного — EXPORT и RESTORE (изогнутая стрелка). Внизу — IMPORT.
+    private var deviceList: [FormRow] {
         let m: AppModel = model
-        let d: MidiDevice = device
+        var rows: [FormRow] = []
+        for d in model.settings.midi.devices { rows.append(.view(deviceRow(d))) }
+        rows.append(.choices([MenuChoice(title: "IMPORT", current: false) { m.chooseDeviceFiles() }]))
+        rows.append(.note("Turn on the devices you play with: each keeps its own mappings, and all devices that are on work together. A new MIDI device appears here when you connect it. Tap a device to see its mappings and settings; swipe left to export it to a file, rename or delete it (built-in: restore the original mappings). IMPORT loads a device file (.json)."))
+        return rows
+    }
+
+    /// Строка устройства: рычажок слева, имя, подключено ли и число маппингов.
+    private func deviceRow(_ d: MidiDevice) -> AnyView {
+        let m: AppModel = model
         let own: Bool = d.controller == nil
-        var r = SwipeRow(title: d.name, subtitle: connected ? "Connected" : "Not connected", meta: "\(d.mappings.count)",
+        let linked: Bool = m.midi.inputs.contains { d.owns($0.name) } || m.midi.outputs.contains { d.owns($0.name) }
+        var r = SwipeRow(title: d.name, subtitle: linked ? "Connected" : "Not connected", meta: "\(d.mappings.count)",
                          height: 48, tap: { m.midiLearn.device = d.name },
                          rename: own ? { m.midiLearn.renaming = d.name } : nil,
                          delete: { if own { m.removeDevice(d.name) } else { m.restoreDevice(d.name) } })
@@ -135,111 +126,51 @@ struct MidiDeviceRow: View {
             r.delIcon = "arrow.counterclockwise"
             r.delTint = d.modified ? Color(hex: 0x8e8e93) : theme.meterTrack
         }
-        return HStack(spacing: 8) {
+        return AnyView(HStack(spacing: 8) {
             Toggle("", isOn: Binding(get: { d.on }, set: { m.setDeviceOn(d.name, $0) }))
                 .labelsHidden()
                 .tint(theme.accent)
             r
-        }
+        }.id(d.name))
     }
 
-    private var connected: Bool {
-        return model.midi.inputs.contains { device.owns($0.name) } || model.midi.outputs.contains { device.owns($0.name) }
-    }
-}
-
-/// Страница устройства: вкл./выкл., настройки контроллера (JAMboPAD), кроссфейдер, маппинги (✕ — удалить, тап — окно
-/// MIDI MAP), CLEAR ALL.
-struct MidiDevicePage: View {
-    let model: AppModel
-    let name: String
-    let close: () -> Void
-
-    var body: some View {
-        guard let d = model.settings.midi.device(name) else { return AnyView(EmptyView()) }
+    /// Страница устройства: вкл./выкл., настройки контроллера (JAMboPAD), кроссфейдер, маппинги (✕ — удалить, тап —
+    /// окно MIDI MAP), CLEAR ALL.
+    private func deviceRows(_ name: String) -> [FormRow] {
+        guard let d = model.settings.midi.device(name) else { return [] }
         let m: AppModel = model
         let maps: [MidiMapping] = d.mappings.filter { $0.target != MidiTarget.crossfader }
-        let name: String = self.name
         var rows: [FormRow] = [.toggle("DEVICE ON", d.on) { m.setDeviceOn(name, $0) }]
         if !d.on { rows.append(.note("The device is off: its mappings do not work. Turn it on to use and edit them.")) }
         if d.controller is JamboPad { rows += JamboPadSection.rows(model) }
-        rows.append(.view(AnyView(crossfader(d))))
+        // Кроссфейдер перехода MIX — строка закреплена (решение пользователя): маппинг или «Not mapped».
+        if let x = d.mappings.first(where: { $0.target == MidiTarget.crossfader }) {
+            rows.append(.view(mapRow(x, on: d.on)))
+        } else {
+            let close: () -> Void = self.close
+            rows.append(.view(AnyView(MidiMapLine(label: "XFADER", value: "Not mapped") {
+                guard d.on else { return }
+                close()
+                m.openMap(MidiTarget.crossfader, back: true)
+            })))
+        }
         rows.append(.label("MAPPINGS (\(maps.count))"))
-        if maps.isEmpty { rows.append(.note("No mappings yet: use MIDI LEARN (GENERAL) and move a control on this device.")) }
-        for x in maps { rows.append(.view(AnyView(row(x, on: d.on)))) }
+        if maps.isEmpty { rows.append(.note("No mappings yet: use MIDI LEARN and move a control on this device.")) }
+        for x in maps { rows.append(.view(mapRow(x, on: d.on))) }
         rows.append(.choices([MenuChoice(title: "CLEAR ALL", enabled: !maps.isEmpty, red: !maps.isEmpty, current: false) { m.clearDevice(name) }]))
-        return AnyView(FormRows(rows: rows))
+        return rows
     }
 
-    private func row(_ x: MidiMapping, on: Bool) -> some View {
+    private func mapRow(_ x: MidiMapping, on: Bool) -> AnyView {
         let m: AppModel = model
         let close: () -> Void = self.close
-        return MidiMapRow(mapping: x, device: x.input == nil ? "" : m.midiPortName(x.input, inputs: true, none: ""),
-                          place: m.placeLabel(x), open: {
+        return AnyView(MidiMapRow(mapping: x, device: x.input == nil ? "" : m.midiPortName(x.input, inputs: true, none: ""),
+                                  place: m.placeLabel(x), open: {
             guard on else { return }
             close()
             m.openMapFromList(x)
         }, remove: { m.removeMapping(x) })
-        .opacity(on ? 1 : 0.5)
-    }
-
-    /// Кроссфейдер перехода MIX — строка закреплена (решение пользователя): маппинг или «Not mapped»; тап — окно MIDI MAP.
-    private func crossfader(_ d: MidiDevice) -> AnyView {
-        if let x = d.mappings.first(where: { $0.target == MidiTarget.crossfader }) { return AnyView(row(x, on: d.on)) }
-        let m: AppModel = model
-        let close: () -> Void = self.close
-        return AnyView(MidiMapLine(label: "XFADER", value: "Not mapped") {
-            guard d.on else { return }
-            close()
-            m.openMap(MidiTarget.crossfader, back: true)
-        })
-    }
-}
-
-/// Устройства: переименование своего (системное окно ввода, до 40 знаков), EXPORT (окно сохранения в «Файлы»),
-/// IMPORT с занятым именем — REPLACE / ADD COPY, непрочитанные файлы — окно с OK.
-struct MidiDeviceAlerts: ViewModifier {
-    let model: AppModel
-    @State private var text: String = ""
-
-    func body(content: Content) -> some View {
-        content
-            .onChange(of: model.midiLearn.renaming) { _, n in
-                if let n = n { text = n }
-            }
-            .inputAlert("RENAME", shown: shown, text: $text) {
-                if let from = model.midiLearn.renaming { model.renameDevice(from, to: text) }
-                model.midiLearn.renaming = nil
-            }
-            .fileMover(isPresented: exportShown, file: model.midiLearn.exported) { _ in model.midiLearn.exported = nil }
-            .confirmationDialog(pendingTitle, isPresented: pendingShown, titleVisibility: .visible) {
-                Button("Replace") { model.importPending(replace: true) }
-                Button("Add copy") { model.importPending(replace: false) }
-                Button("Cancel", role: .cancel) { model.midiLearn.pending = nil }
-            }
-            .noticeAlert("MIDI devices", shown: noteShown, message: model.midiLearn.note ?? "", cancel: false) {
-                model.midiLearn.note = nil
-            }
-    }
-
-    private var pendingTitle: String {
-        return "\(model.midiLearn.pending?.name ?? "") already exists"
-    }
-
-    private var pendingShown: Binding<Bool> {
-        Binding(get: { model.midiLearn.pending != nil }, set: { if !$0 { model.midiLearn.pending = nil } })
-    }
-
-    private var exportShown: Binding<Bool> {
-        Binding(get: { model.midiLearn.exported != nil }, set: { if !$0 { model.midiLearn.exported = nil } })
-    }
-
-    private var noteShown: Binding<Bool> {
-        Binding(get: { model.midiLearn.note != nil }, set: { if !$0 { model.midiLearn.note = nil } })
-    }
-
-    private var shown: Binding<Bool> {
-        Binding(get: { model.midiLearn.renaming != nil }, set: { if !$0 { model.midiLearn.renaming = nil } })
+        .opacity(on ? 1 : 0.5))
     }
 }
 
