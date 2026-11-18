@@ -15,6 +15,8 @@ struct SwipeRow: View {
     /// Вместо корзины (устройства MIDI: у встроенного — RESTORE, изогнутая стрелка на сером).
     var delIcon: String = "trash"
     var delTint: Color? = nil
+    /// Экспорт файлом (устройства MIDI) — первым значком, на сером.
+    var export: (() -> Void)? = nil
     /// Цвет текста (Autosave — жёлтый); current — строка горит акцентом (текущий проект).
     let tint: Color?
     let current: Bool
@@ -43,7 +45,8 @@ struct SwipeRow: View {
     }
 
     private var reveal: CGFloat {
-        return rename == nil ? SwipeRow.button : 2 * SwipeRow.button + 4
+        let n: CGFloat = 1 + (rename == nil ? 0 : 1) + (export == nil ? 0 : 1)
+        return n * SwipeRow.button + (n - 1) * 4
     }
 
     var body: some View {
@@ -91,6 +94,12 @@ struct SwipeRow: View {
 
     private var actions: some View {
         HStack(spacing: 4) {
+            if let e = export {
+                icon("square.and.arrow.up", Color(hex: 0x8e8e93)) {
+                    close()
+                    e()
+                }
+            }
             if let r = rename {
                 icon("pencil", Color(hex: 0x8e8e93)) {
                     close()

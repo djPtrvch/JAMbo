@@ -126,4 +126,44 @@ final class ControllerTests: XCTestCase {
         let back = try JSONDecoder().decode(MidiSettings.self, from: JSONEncoder().encode(s))
         XCTAssertEqual(back, s)
     }
+
+    /// Файл устройства: EXPORT и IMPORT; встроенный — маппинги заменяются; своё — замена или копия.
+    func testDeviceFile() throws {
+        var s = MidiSettings()
+        _ = s.addPort("Synth")
+        s.learn(.knob(0), src: MidiSource(type: .cc, ch: 0, num: 7), input: 2, dev: "Synth", continuous: true,
+                MidiContext(clipOpen: false, page: .track))
+        let data: Data = try XCTUnwrap(s.device("Synth")?.fileData())
+        let d: MidiDevice = try XCTUnwrap(MidiDevice.read(data))
+        XCTAssertEqual(d.name, "Synth")
+        XCTAssertEqual(d.port, "Synth")
+        XCTAssertEqual(d.mappings, s.device("Synth")?.mappings)
+        XCTAssertNil(MidiDevice.read(Data("{\"name\":\"X\"}".utf8)))
+        XCTAssertEqual(s.importDevice(d, replace: false), "Synth 2")
+        XCTAssertEqual(s.device("Synth 2")?.mappings.first?.dev, "Synth 2")
+        s.setOn("Synth", false)
+        var e = d
+        e.mappings = []
+        XCTAssertEqual(s.importDevice(e, replace: true), "Synth")
+        XCTAssertEqual(s.device("Synth")?.mappings.count, 0)
+        XCTAssertFalse(s.isOn("Synth"))
+        var pad = MidiDevice(name: "JAMboPAD", port: "", on: true, mappings: [])
+        pad.mappings = []
+        XCTAssertEqual(s.importDevice(pad, replace: false), "JAMboPAD")
+        XCTAssertEqual(s.device("JAMboPAD")?.mappings.count, 0)
+    }
+
+    /// controllers/JAMboPAD.json в репозитории — те же маппинги, что встроенные (JAMBO_WRITE_CONTROLLERS=1 — записать).
+    func testJamboPadFile() throws {
+        let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("controllers/JAMboPAD.json")
+        let pad = MidiDevice(name: "JAMboPAD", port: "", on: true, mappings: JamboPad().mappings)
+        if ProcessInfo.processInfo.environment["JAMBO_WRITE_CONTROLLERS"] == "1" {
+            try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try XCTUnwrap(pad.fileData()).write(to: url)
+        }
+        let d: MidiDevice = try XCTUnwrap(MidiDevice.read(try Data(contentsOf: url)))
+        XCTAssertEqual(d.mappings, pad.mappings)
+    }
 }

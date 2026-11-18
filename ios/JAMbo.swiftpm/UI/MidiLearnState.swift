@@ -110,6 +110,24 @@ final class MidiLearnState {
         get { access(keyPath: \._device); return _device }
         set { put(\._device, newValue, observedChanged(_device, newValue)) }
     }
+    /// IMPORT устройства: выбор файла (общий fileImporter RootView), файл с занятым именем — вопрос REPLACE / ADD COPY,
+    /// итог (ошибки) — окно с OK; EXPORT — файл для окна сохранения в «Файлы».
+    @ObservationIgnored var importing: Bool = false
+    @ObservationIgnored private var _pending: MidiDevice? = nil
+    var pending: MidiDevice? {
+        get { access(keyPath: \._pending); return _pending }
+        set { put(\._pending, newValue, observedChanged(_pending, newValue)) }
+    }
+    @ObservationIgnored private var _note: String? = nil
+    var note: String? {
+        get { access(keyPath: \._note); return _note }
+        set { put(\._note, newValue, observedChanged(_note, newValue)) }
+    }
+    @ObservationIgnored private var _exported: URL? = nil
+    var exported: URL? {
+        get { access(keyPath: \._exported); return _exported }
+        set { put(\._exported, newValue, observedChanged(_exported, newValue)) }
+    }
     /// Переименование устройства (системное окно ввода).
     @ObservationIgnored private var _renaming: String? = nil
     var renaming: String? {

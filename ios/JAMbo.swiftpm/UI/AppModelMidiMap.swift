@@ -114,6 +114,55 @@ extension AppModel {
         }
     }
 
+    /// IMPORT: системный выбор файлов устройств (.json).
+    func chooseDeviceFiles() {
+        importingProject = false
+        importingLibrary = false
+        importingHeads = false
+        importingPhones = false
+        midiLearn.importing = true
+        importing = true
+    }
+
+    /// Файлы устройств: встроенный и новое имя — сразу; своё с занятым именем — вопрос REPLACE / ADD COPY (первое такое;
+    /// остальные — копиями). Непрочитанные — в окне с OK.
+    func importDeviceFiles(_ urls: [URL]) {
+        var bad: [String] = []
+        for u in urls {
+            let access: Bool = u.startAccessingSecurityScopedResource()
+            defer { if access { u.stopAccessingSecurityScopedResource() } }
+            guard let data = try? Data(contentsOf: u), let d = MidiDevice.read(data) else {
+                bad.append(u.lastPathComponent)
+                continue
+            }
+            let own: Bool = settings.midi.device(d.name).map { $0.controller == nil } ?? false
+            if own && midiLearn.pending == nil {
+                midiLearn.pending = d
+            } else {
+                setMidi { $0.importDevice(d, replace: false) }
+            }
+        }
+        if !bad.isEmpty { midiLearn.note = "Not a JAMbo MIDI device file: " + bad.joined(separator: ", ") + "." }
+    }
+
+    /// Ответ на вопрос о занятом имени.
+    func importPending(replace: Bool) {
+        guard let d = midiLearn.pending else { return }
+        midiLearn.pending = nil
+        setMidi { $0.importDevice(d, replace: replace) }
+    }
+
+    /// EXPORT: файл устройства «имя.json» во временной папке — в окно сохранения в «Файлы».
+    func exportDevice(_ name: String) {
+        guard let d = settings.midi.device(name), let data = d.fileData() else { return }
+        let dir: URL = FileManager.default.temporaryDirectory.appendingPathComponent("midiexport", isDirectory: true)
+        try? FileManager.default.removeItem(at: dir)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let safe: String = name.replacingOccurrences(of: "/", with: "-").replacingOccurrences(of: ":", with: "-")
+        let url: URL = dir.appendingPathComponent(safe + ".json")
+        midiLearn.exported = (try? data.write(to: url, options: .atomic)) != nil ? url : nil
+    }
+
     /// Новые входы — свои устройства (по поколению выходов MidiHost, вместе с контроллерами).
     func addMidiPorts() {
         let names: [String] = midi.inputs.map { $0.name }

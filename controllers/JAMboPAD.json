@@ -1,0 +1,2696 @@
+{
+  "jambo" : "midi-device",
+  "mappings" : [
+    {
+      "cond" : "global",
+      "control" : "abs",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 0,
+        "num" : 0,
+        "type" : "cc"
+      },
+      "target" : {
+        "knob" : {
+          "_0" : 0
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "abs",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 0,
+        "num" : 1,
+        "type" : "cc"
+      },
+      "target" : {
+        "knob" : {
+          "_0" : 1
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "abs",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 0,
+        "num" : 2,
+        "type" : "cc"
+      },
+      "target" : {
+        "knob" : {
+          "_0" : 2
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "abs",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 0,
+        "num" : 3,
+        "type" : "cc"
+      },
+      "target" : {
+        "knob" : {
+          "_0" : 3
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "abs",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 0,
+        "num" : 4,
+        "type" : "cc"
+      },
+      "target" : {
+        "knob" : {
+          "_0" : 4
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "abs",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 0,
+        "num" : 5,
+        "type" : "cc"
+      },
+      "target" : {
+        "knob" : {
+          "_0" : 5
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "abs",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 0,
+        "num" : 6,
+        "type" : "cc"
+      },
+      "target" : {
+        "knob" : {
+          "_0" : 6
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "abs",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 0,
+        "num" : 7,
+        "type" : "cc"
+      },
+      "target" : {
+        "knob" : {
+          "_0" : 7
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "abs",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 0,
+        "num" : 8,
+        "type" : "cc"
+      },
+      "target" : {
+        "knob" : {
+          "_0" : 8
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "abs",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 0,
+        "num" : 9,
+        "type" : "cc"
+      },
+      "target" : {
+        "knob" : {
+          "_0" : 9
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "abs",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 0,
+        "num" : 10,
+        "type" : "cc"
+      },
+      "target" : {
+        "knob" : {
+          "_0" : 10
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "abs",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 0,
+        "num" : 11,
+        "type" : "cc"
+      },
+      "target" : {
+        "knob" : {
+          "_0" : 11
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "abs",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 0,
+        "num" : 12,
+        "type" : "cc"
+      },
+      "target" : {
+        "knob" : {
+          "_0" : 12
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "abs",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 0,
+        "num" : 13,
+        "type" : "cc"
+      },
+      "target" : {
+        "knob" : {
+          "_0" : 13
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "abs",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 0,
+        "num" : 14,
+        "type" : "cc"
+      },
+      "target" : {
+        "knob" : {
+          "_0" : 14
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "abs",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 0,
+        "num" : 15,
+        "type" : "cc"
+      },
+      "target" : {
+        "knob" : {
+          "_0" : 15
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 1,
+        "num" : 36,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "STEP 1"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 4,
+        "num" : 36,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "MUTE 1"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 5,
+        "num" : 36,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "T1"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 1,
+        "num" : 37,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "STEP 2"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 4,
+        "num" : 37,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "MUTE 2"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 5,
+        "num" : 37,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "T2"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 1,
+        "num" : 38,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "STEP 3"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 4,
+        "num" : 38,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "MUTE 3"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 5,
+        "num" : 38,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "T3"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 1,
+        "num" : 39,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "STEP 4"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 4,
+        "num" : 39,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "MUTE 4"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 5,
+        "num" : 39,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "T4"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 1,
+        "num" : 40,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "STEP 5"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 4,
+        "num" : 40,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "MUTE 5"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 5,
+        "num" : 40,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "T5"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 1,
+        "num" : 41,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "STEP 6"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 4,
+        "num" : 41,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "MUTE 6"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 5,
+        "num" : 41,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "T6"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 1,
+        "num" : 42,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "STEP 7"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 4,
+        "num" : 42,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "MUTE 7"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 5,
+        "num" : 42,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "T7"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 1,
+        "num" : 43,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "STEP 8"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 4,
+        "num" : 43,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "MUTE 8"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 5,
+        "num" : 43,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "T8"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 1,
+        "num" : 44,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "STEP 9"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 4,
+        "num" : 44,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "MUTE 9"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 5,
+        "num" : 44,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "T9"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 1,
+        "num" : 45,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "STEP 10"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 4,
+        "num" : 45,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "MUTE 10"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 5,
+        "num" : 45,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "T10"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 1,
+        "num" : 46,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "STEP 11"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 4,
+        "num" : 46,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "MUTE 11"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 5,
+        "num" : 46,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "T11"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 1,
+        "num" : 47,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "STEP 12"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 4,
+        "num" : 47,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "MUTE 12"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 5,
+        "num" : 47,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "T12"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 1,
+        "num" : 48,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "STEP 13"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 4,
+        "num" : 48,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "MUTE 13"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 5,
+        "num" : 48,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "T13"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 1,
+        "num" : 49,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "STEP 14"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 4,
+        "num" : 49,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "MUTE 14"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 5,
+        "num" : 49,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "T14"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 1,
+        "num" : 50,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "STEP 15"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 4,
+        "num" : 50,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "MUTE 15"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 5,
+        "num" : 50,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "T15"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 1,
+        "num" : 51,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "STEP 16"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 4,
+        "num" : 51,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "MUTE 16"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 5,
+        "num" : 51,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "T16"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 1,
+        "num" : 4,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "LFO1"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 1,
+        "num" : 5,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "LFO2"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 1,
+        "num" : 6,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "LFO3"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 1,
+        "num" : 7,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "ENV"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 1,
+        "num" : 8,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "MIX"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 1,
+        "num" : 9,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "MST"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 2,
+        "num" : 36,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "PAGE 1"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 2,
+        "num" : 37,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "PAGE 2"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 2,
+        "num" : 38,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "PAGE 3"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 2,
+        "num" : 39,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "PAGE 4"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 2,
+        "num" : 40,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "PAGE 5"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 2,
+        "num" : 41,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "PAGE 6"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 2,
+        "num" : 42,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "PAGE 7"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 2,
+        "num" : 43,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "PAGE 8"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 2,
+        "num" : 44,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "CHORD"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 2,
+        "num" : 45,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "ARP"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 2,
+        "num" : 46,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "OCTAVE ▼"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 2,
+        "num" : 47,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "OCTAVE ▲"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 2,
+        "num" : 48,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "FX"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 2,
+        "num" : 49,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "MOD"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 2,
+        "num" : 50,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "SHIFT"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 2,
+        "num" : 51,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "MORPH"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 2,
+        "num" : 0,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "PLAY"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 2,
+        "num" : 1,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "REC"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 2,
+        "num" : 2,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "UNDO"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 2,
+        "num" : 3,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "REDO"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 2,
+        "num" : 4,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "PATTERNS"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 2,
+        "num" : 5,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "GRID ▲"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 2,
+        "num" : 6,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "GRID ▼"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 2,
+        "num" : 7,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "ROW 1"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 2,
+        "num" : 8,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "EQ"
+        }
+      }
+    },
+    {
+      "cond" : "global",
+      "control" : "momentary",
+      "enc" : "offset",
+      "max" : 1,
+      "min" : 0,
+      "page" : "track",
+      "port" : {
+        "standard" : {
+
+        }
+      },
+      "press" : {
+        "reset" : {
+
+        }
+      },
+      "src" : {
+        "ch" : 2,
+        "num" : 9,
+        "type" : "note"
+      },
+      "target" : {
+        "button" : {
+          "_0" : "METRONOME"
+        }
+      }
+    }
+  ],
+  "name" : "JAMboPAD",
+  "port" : "",
+  "version" : 1
+}

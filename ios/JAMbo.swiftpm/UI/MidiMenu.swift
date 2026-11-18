@@ -35,7 +35,7 @@ struct MidiMenuPage: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .modifier(MidiDeviceRename(model: model))
+        .modifier(MidiDeviceAlerts(model: model))
     }
 
     private func section(_ dev: String?) -> AnyView {
@@ -100,7 +100,7 @@ struct MidiGeneralTab: View {
 
 /// DEVICES: встроенные (JAMboPAD) и свои (появляются сами при подключении нового входа). Рычажок — вкл./выкл.
 /// (включённых — сколько угодно, маппинги работают вместе); тап — страница устройства; свайп влево — карандаш и
-/// корзина, у встроенного — RESTORE (изогнутая стрелка).
+/// корзина, у встроенного — RESTORE (изогнутая стрелка); первым — EXPORT файлом. Внизу — IMPORT.
 struct MidiDevicesTab: View {
     let model: AppModel
 
@@ -110,7 +110,9 @@ struct MidiDevicesTab: View {
             ForEach(list, id: \.name) { d in
                 MidiDeviceRow(model: model, device: d)
             }
-            SettingsNote(text: "Turn on the devices you play with: each keeps its own mappings, and all devices that are on work together. A new MIDI device appears here when you connect it. Tap a device to see its mappings and settings; swipe left to rename or delete it (built-in: restore the original mappings).")
+            MenuChoiceButtons(items: [MenuChoice(title: "IMPORT", current: false) { model.chooseDeviceFiles() }])
+                .padding(.top, 4)
+            SettingsNote(text: "Turn on the devices you play with: each keeps its own mappings, and all devices that are on work together. A new MIDI device appears here when you connect it. Tap a device to see its mappings and settings; swipe left to export it to a file, rename or delete it (built-in: restore the original mappings). IMPORT loads a device file (.json).")
                 .padding(.vertical, 6)
         }
     }
@@ -129,6 +131,7 @@ struct MidiDeviceRow: View {
                          height: 48, tap: { m.midiLearn.device = d.name },
                          rename: own ? { m.midiLearn.renaming = d.name } : nil,
                          delete: { if own { m.removeDevice(d.name) } else { m.restoreDevice(d.name) } })
+        r.export = { m.exportDevice(d.name) }
         if !own {
             r.delIcon = "arrow.counterclockwise"
             r.delTint = d.modified ? Color(hex: 0x8e8e93) : theme.meterTrack
@@ -161,7 +164,6 @@ struct MidiDevicePage: View {
         var rows: [FormRow] = [.toggle("DEVICE ON", d.on) { m.setDeviceOn(name, $0) }]
         if !d.on { rows.append(.note("The device is off: its mappings do not work. Turn it on to use and edit them.")) }
         if d.controller is JamboPad { rows += JamboPadSection.rows(model) }
-        rows.append(.label("CROSSFADER"))
         rows.append(.view(AnyView(crossfader(d))))
         rows.append(.label("MAPPINGS (\(maps.count))"))
         if maps.isEmpty { rows.append(.note("No mappings yet: use MIDI LEARN (GENERAL) and move a control on this device.")) }
@@ -195,8 +197,9 @@ struct MidiDevicePage: View {
     }
 }
 
-/// Переименование своего устройства — системное окно ввода (до 40 знаков).
-struct MidiDeviceRename: ViewModifier {
+/// Устройства: переименование своего (системное окно ввода, до 40 знаков), EXPORT (окно сохранения в «Файлы»),
+/// IMPORT с занятым именем — REPLACE / ADD COPY, непрочитанные файлы — окно с OK.
+struct MidiDeviceAlerts: ViewModifier {
     let model: AppModel
     @State private var text: String = ""
 
@@ -209,6 +212,31 @@ struct MidiDeviceRename: ViewModifier {
                 if let from = model.midiLearn.renaming { model.renameDevice(from, to: text) }
                 model.midiLearn.renaming = nil
             }
+            .fileMover(isPresented: exportShown, file: model.midiLearn.exported) { _ in model.midiLearn.exported = nil }
+            .confirmationDialog(pendingTitle, isPresented: pendingShown, titleVisibility: .visible) {
+                Button("Replace") { model.importPending(replace: true) }
+                Button("Add copy") { model.importPending(replace: false) }
+                Button("Cancel", role: .cancel) { model.midiLearn.pending = nil }
+            }
+            .noticeAlert("MIDI devices", shown: noteShown, message: model.midiLearn.note ?? "", cancel: false) {
+                model.midiLearn.note = nil
+            }
+    }
+
+    private var pendingTitle: String {
+        return "\(model.midiLearn.pending?.name ?? "") already exists"
+    }
+
+    private var pendingShown: Binding<Bool> {
+        Binding(get: { model.midiLearn.pending != nil }, set: { if !$0 { model.midiLearn.pending = nil } })
+    }
+
+    private var exportShown: Binding<Bool> {
+        Binding(get: { model.midiLearn.exported != nil }, set: { if !$0 { model.midiLearn.exported = nil } })
+    }
+
+    private var noteShown: Binding<Bool> {
+        Binding(get: { model.midiLearn.note != nil }, set: { if !$0 { model.midiLearn.note = nil } })
     }
 
     private var shown: Binding<Bool> {
