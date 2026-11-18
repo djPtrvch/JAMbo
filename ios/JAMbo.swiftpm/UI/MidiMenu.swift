@@ -61,6 +61,7 @@ struct MidiDevicesTab: View {
                 model.setMidi { $0.feedback = id }
             }
             SettingsNote(text: "Knob values are sent back to this output, so encoder LED rings (Midi Fighter Twister) follow the screen.")
+            JamboPadSection(model: model)
             bluetooth
         }
     }
@@ -196,4 +197,32 @@ struct MidiMapRow: View {
         }
         return s
     }
+}
+
+/// JAMboPAD (два SMC-PAD со своей прошивкой): разъём MIDI OUT пэдов (SET_MIDI_OUT — сразу на все SMC-PAD).
+/// Гамма уходит пэдам сама; пресет маппингов — SMC-PAD ×2 в окне MIDI MAP (Preset).
+struct JamboPadSection: View {
+    let model: AppModel
+
+    var body: some View {
+        let m: AppModel = model
+        let ms: MidiSettings = model.settings.midi
+        let titles: [String] = ["OFF", "CLOCK", "ALL"]
+        var thru: [MenuChoice] = []
+        for k in 0..<titles.count {
+            thru.append(MenuChoice(title: titles[k], current: ms.padThru == k) { m.setPadMidiOut(thru: k) })
+        }
+        let pads: Int = self.pads
+        let toggle: (Bool) -> Void = { (on: Bool) in m.setPadMidiOut(controls: on) }
+        let rows: [FormRow] = [
+            .head("JAMboPAD"),
+            .label("PAD MIDI OUT"),
+            .choices(thru),
+            .toggle("PAD MESSAGES TO MIDI OUT", ms.padControls, toggle),
+            .note((pads == 0 ? "No pads connected. " : "Pads connected: \(pads). ") + "MIDI OUT: what the pads pass from JAMbo to their 3.5 mm jack — CLOCK: clock, start and stop; ALL: everything JAMbo sends them. Scale, key note and keyboard octave are sent to the pads automatically (over USB); a key note or scale picked on a pad changes ROOT or SCALE. Mapping preset to start from: MIDI MAP → Preset → SMC-PAD ×2."),
+        ]
+        return FormRows(rows: rows)
+    }
+
+    private var pads: Int { return model.controllerOutputs(JamboPad()).count }
 }

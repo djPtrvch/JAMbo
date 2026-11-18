@@ -15,16 +15,20 @@ extension AppModel {
         }
         var out: [Int32: [UInt32]] = [:]
         var seen: Set<String> = []
+        let outs: [(id: Int32, name: String)] = midi.outputs.map { ($0.id, $0.name) }
         for m in ms.feedbackMappings(midiContext) {
-            guard let dst = m.feedbackDest(default: ms.feedback), midi.hasDestination(dst) else { continue }
-            // Один источник на выходе — одно значение (маппинги с разных входов не спорят).
-            if !seen.insert(MidiFeedback.key(dest: dst, src: m.src)).inserted { continue }
             // Фейдер (ABSOLUTE), который сейчас двигают на контроллере, — без эха: старое значение, пришедшее
             // обратно с задержкой, дёргало бы его. Энкодеры (RELATIVE) — с кольцом, пока крутят.
             if m.control == .abs, let t = midiRun.feedbackHold[m.src], now - t < 0.3 { continue }
-            guard let v = midiFeedbackValue(m) else { continue }
-            if !midiRun.feedback.change(dest: dst, src: m.src, value: v) { continue }
-            out[dst, default: []].append(MidiFeedback.word(m.src, value: v))
+            var v: Int? = nil
+            for dst in m.feedbackDests(default: ms.feedback, outputs: outs) where midi.hasDestination(dst) {
+                // Один источник на выходе — одно значение (маппинги с разных входов не спорят).
+                if !seen.insert(MidiFeedback.key(dest: dst, src: m.src)).inserted { continue }
+                if v == nil { v = midiFeedbackValue(m) }
+                guard let val = v else { break }
+                if !midiRun.feedback.change(dest: dst, src: m.src, value: val) { continue }
+                out[dst, default: []].append(MidiFeedback.word(m.src, value: val))
+            }
         }
         for (dst, words) in out { midi.send(words, to: dst) }
     }

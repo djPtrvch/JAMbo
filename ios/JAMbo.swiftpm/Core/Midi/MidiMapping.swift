@@ -136,11 +136,13 @@ public struct MidiPlace: Codable, Equatable, Hashable, Sendable {
     }
 }
 
-/// Порт обратной связи: по умолчанию (DEVICES → FEEDBACK OUTPUT), нет или выход по uniqueID.
+/// Порт обратной связи: по умолчанию (DEVICES → FEEDBACK OUTPUT), нет, выход по uniqueID или все выходы контроллера
+/// по его имени (Controllers; встроенные пресеты: два пэда JAMboPAD — два выхода).
 public enum MidiPort: Codable, Equatable, Sendable {
     case standard
     case none
     case device(Int32)
+    case controller(String)
 }
 
 /// Что делает нажатие ручки (цель PRESS; строка Action окна MIDI MAP): сброс к значению по умолчанию (как двойной

@@ -32,6 +32,10 @@ final class MidiHost {
     @ObservationIgnored private(set) var started: Bool = false
     /// Сообщение, uniqueID источника и время прихода (секунды хоста, метка пакета) — на главном потоке.
     @ObservationIgnored var onMessage: ((MidiMessage, Int32, Double) -> Void)? = nil
+    /// Готовый SysEx (байты без F0 и F7) и uniqueID источника — на главном потоке.
+    @ObservationIgnored var onSysEx: (([UInt8], Int32) -> Void)? = nil
+    /// Сборка SysEx по входам — только в потоке CoreMIDI.
+    @ObservationIgnored private var sysexReaders: [Int32: SysExReader] = [:]
 
     func start() {
         if started { return }
@@ -104,17 +108,27 @@ final class MidiHost {
         let size: Int = MemoryLayout<MIDIEventList>.size
         var packet: UnsafeMutablePointer<MIDIEventPacket> = MIDIEventListInit(sendList, ._1_0)
         var count: Int = 0
-        for w in words {
-            if count == 16 {
+        var i: Int = 0
+        while i < words.count {
+            if count >= 16 {
                 MIDISendEventList(outPort, dst, sendList)
                 packet = MIDIEventListInit(sendList, ._1_0)
                 count = 0
             }
-            var word: UInt32 = w
-            packet = MIDIEventListAdd(sendList, size, packet, 0, 1, &word)
-            count += 1
+            // Сообщение целиком (SysEx — 2 слова): по длине из его типа.
+            let n: Int = min(MidiMessage.wordCount(words[i]), words.count - i)
+            var msg: [UInt32] = Array(words[i..<(i + n)])
+            packet = MIDIEventListAdd(sendList, size, packet, 0, n, &msg)
+            count += n
+            i += n
         }
         MIDISendEventList(outPort, dst, sendList)
+    }
+
+    /// SysEx (байты без F0 и F7) на выходы ids. Только с главного потока.
+    func sendSysEx(_ bytes: [UInt8], to ids: [Int32]) {
+        let words: [UInt32] = SysEx7.words(bytes)
+        for id in ids { send(words, to: id) }
     }
 
     /// Поток CoreMIDI: разбор пакетов, сообщения — на главный поток одним блоком.
@@ -122,6 +136,7 @@ final class MidiHost {
         let source: Int32 = Int32(truncatingIfNeeded: Int(bitPattern: ref))
         let clock = HostClock()
         var msgs: [(MidiMessage, Double)] = []
+        var sysex: [[UInt8]] = []
         for packet in list.unsafeSequence() {
             // Метка 0 — «сейчас».
             let stamp: UInt64 = packet.pointee.timeStamp
@@ -132,12 +147,32 @@ final class MidiHost {
                 let all = raw.bindMemory(to: UInt32.self)
                 let used = UnsafeBufferPointer<UInt32>(rebasing: all[0..<min(count, all.count)])
                 for m in MidiMessage.parse(words: used) { msgs.append((m, at)) }
+                readSysEx(used, source, &sysex)
             }
         }
-        if msgs.isEmpty { return }
+        if msgs.isEmpty && sysex.isEmpty { return }
         DispatchQueue.main.async { [weak self] in
-            guard let self = self, let handler = self.onMessage else { return }
-            for (msg, at) in msgs { handler(msg, source, at) }
+            guard let self = self else { return }
+            if let handler = self.onMessage {
+                for (msg, at) in msgs { handler(msg, source, at) }
+            }
+            if let handler = self.onSysEx {
+                for b in sysex { handler(b, source) }
+            }
+        }
+    }
+
+    /// SysEx (UMP тип 0x3) из слов пакета: сборка по входу, готовые — в out.
+    private func readSysEx(_ words: UnsafeBufferPointer<UInt32>, _ source: Int32, _ out: inout [[UInt8]]) {
+        var i: Int = 0
+        while i < words.count {
+            let w: UInt32 = words[i]
+            if w >> 28 == 0x3 && i + 1 < words.count {
+                var r: SysExReader = sysexReaders[source] ?? SysExReader()
+                if let b = r.feed(w, words[i + 1]) { out.append(b) }
+                sysexReaders[source] = r
+            }
+            i += MidiMessage.wordCount(w)
         }
     }
 

@@ -546,6 +546,7 @@ final class AppModel {
         drainStems()
         tickMeters()
         tickMidiFeedback()
+        tickControllers()
         tickMidiClock()
         tickClockFollow()
         tickMidiOut()

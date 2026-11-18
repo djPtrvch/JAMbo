@@ -43,12 +43,16 @@ extension MidiMapping {
         return Int((x * 127).rounded())
     }
 
-    /// Выход обратной связи: Default — выход из DEVICES (feedback), None — нет, иначе свой.
-    public func feedbackDest(default def: Int32?) -> Int32? {
+    /// Выходы обратной связи: Default — выход из DEVICES (feedback), None — нет, свой, или все выходы контроллера
+    /// (outputs — uniqueID и имена подключённых выходов).
+    public func feedbackDests(default def: Int32?, outputs: [(id: Int32, name: String)]) -> [Int32] {
         switch port {
-        case .standard: return def
-        case .none: return nil
-        case .device(let id): return id
+        case .standard: return def.map { [$0] } ?? []
+        case .none: return []
+        case .device(let id): return [id]
+        case .controller(let n):
+            guard let c = Controllers.named(n) else { return [] }
+            return outputs.filter { c.owns($0.name) }.map { $0.id }
         }
     }
 }

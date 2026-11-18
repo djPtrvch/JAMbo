@@ -14,12 +14,15 @@ public struct MidiSettings: Codable, Equatable, Sendable {
     /// Нажатие ручки (KNOB c.r PRESS) — как палец на ручке: нажатие — касание, двойное — двойной тап (по умолчанию);
     /// OFF — действие из окна MIDI MAP (Action). Решение пользователя.
     public var pressTouch: Bool = true
+    /// JAMboPAD, разъём MIDI OUT (SET_MIDI_OUT): 0 OFF, 1 CLOCK (по умолчанию в пэде), 2 ALL; сообщения пэдов — туда же.
+    public var padThru: Int = 1
+    public var padControls: Bool = false
 
     public init() {}
 
     /// Прежний общий вход нот (input, до 8.11) при чтении пропускается: ноты — только у дорожек (TrackMidi), маппинги —
     /// со своего входа (MidiMapping).
-    private enum CodingKeys: String, CodingKey { case feedback, mappings, preset, pressTouch }
+    private enum CodingKeys: String, CodingKey { case feedback, mappings, preset, pressTouch, padThru, padControls }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -28,6 +31,8 @@ public struct MidiSettings: Codable, Equatable, Sendable {
         mappings = maps.compactMap { $0.value }
         preset = c.value(.preset, "")
         pressTouch = c.value(.pressTouch, true)
+        padThru = c.value(.padThru, 1)
+        padControls = c.value(.padControls, false)
     }
 
     /// Касание клавиши для ноты с MIDI на дорожке track (id клавиши в модели): отрицательные, не пересекаются

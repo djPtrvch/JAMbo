@@ -186,6 +186,7 @@ struct MidiMapMain: View {
         case .standard: return "Default (\(def))"
         case .none: return "None"
         case .device(let id): return model.midiPortName(id, inputs: false, none: "None")
+        case .controller(let n): return "All " + n
         }
     }
 

@@ -5,6 +5,7 @@ import Foundation
 extension AppModel {
     func startMidi() {
         midi.onMessage = { [weak self] msg, source, at in self?.midiMessage(msg, source: source, at: at) }
+        midi.onSysEx = { [weak self] bytes, source in self?.controllerSysEx(bytes, source: source) }
         midi.start()
     }
 

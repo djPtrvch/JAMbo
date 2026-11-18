@@ -1,7 +1,8 @@
 import Foundation
 
 // Пресеты маппингов (S13c, строка Preset окна MIDI MAP): набор маппингов под контроллер.
-// Хранятся отдельно от настроек (UserDefaults), общие для проектов. Встроенного пресета нет (решение пользователя).
+// Хранятся отдельно от настроек (UserDefaults), общие для проектов. Встроенные — у контроллеров (Controllers.presets:
+// SMC-PAD ×2), в список не сохраняются.
 
 public struct MidiPreset: Codable, Equatable, Sendable {
     public var name: String

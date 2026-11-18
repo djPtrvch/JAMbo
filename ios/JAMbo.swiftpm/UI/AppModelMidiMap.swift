@@ -82,19 +82,21 @@ extension AppModel {
 
     /// Маппинги изменены после загрузки или сохранения пресета («*» в строке Preset).
     var presetModified: Bool {
-        guard let p = midiLearn.presets.preset(settings.midi.preset) else { return false }
+        guard let p = midiPreset(settings.midi.preset) else { return false }
         return p.mappings != settings.midi.mappings
     }
 
     /// Загрузить пресет: его маппинги заменяют все нынешние.
     func loadMidiPreset(_ name: String) {
-        guard let p = midiLearn.presets.preset(name) else { return }
+        guard let p = midiPreset(name) else { return }
         setMidi { s in
             s.mappings = p.mappings
             s.preset = p.name
         }
     }
 
+    /// Встроенный (SMC-PAD ×2) сохраняется своей настройкой под тем же именем; не переименовывается; удаление
+    /// настройки возвращает исходный.
     func saveMidiPreset(_ name: String) {
         guard let n = midiLearn.presets.save(name, settings.midi.mappings) else { return }
         storeMidiPresets()
@@ -102,6 +104,7 @@ extension AppModel {
     }
 
     func renameMidiPreset(_ from: String, to: String) {
+        if Controllers.isBuiltIn(from) || Controllers.isBuiltIn(to) { return }
         guard let n = midiLearn.presets.rename(from, to: to) else { return }
         storeMidiPresets()
         if settings.midi.preset == from { setMidi { $0.preset = n } }
@@ -110,7 +113,7 @@ extension AppModel {
     func deleteMidiPreset(_ name: String) {
         midiLearn.presets.delete(name)
         storeMidiPresets()
-        if settings.midi.preset == name { setMidi { $0.preset = "" } }
+        if settings.midi.preset == name && !Controllers.isBuiltIn(name) { setMidi { $0.preset = "" } }
     }
 
     private func storeMidiPresets() {
