@@ -1,63 +1,51 @@
 import SwiftUI
 
-/// Вкладки меню MIDI (18.11, решение пользователя): GENERAL — общее, DEVICES — устройства со своими маппингами.
-enum MidiTab: String, CaseIterable {
-    case general = "GENERAL"
-    case devices = "DEVICES"
+/// Страница меню MIDI (18.11, решение пользователя): general — само меню MIDI (общее и кнопка DEVICES), devices —
+/// вложенное меню со списком устройств.
+enum MidiTab: String {
+    case general
+    case devices
 }
 
-/// Бутерброд → MIDI (S13a): стрелка назад и «MIDI», вкладки, ниже — с чертой — открытая вкладка; открытое устройство —
-/// вложенное меню (стрелка назад и имя устройства).
+/// Бутерброд → MIDI (S13a): стрелка назад и «MIDI», общее и кнопка DEVICES; DEVICES и открытое устройство —
+/// вложенные меню (стрелка назад — на уровень выше).
 struct MidiMenuPage: View {
     let model: AppModel
     let back: () -> Void
     let close: () -> Void
 
-    private var tab: MidiTab { return model.midiLearn.tab }
-
     var body: some View {
-        let dev: String? = model.midiLearn.tab == .devices ? model.midiLearn.device : nil
+        let devices: Bool = model.midiLearn.tab == .devices
+        let dev: String? = devices ? model.midiLearn.device : nil
         let m: AppModel = model
         let back: () -> Void = self.back
+        let title: String = dev ?? (devices ? "DEVICES" : "MIDI")
         return VStack(alignment: .leading, spacing: 8) {
-            MenuBackHeader(title: dev ?? "MIDI", caps: dev == nil) {
-                if dev != nil { m.midiLearn.device = nil } else { back() }
+            MenuBackHeader(title: title, caps: dev == nil) {
+                if dev != nil {
+                    m.midiLearn.device = nil
+                } else if devices {
+                    m.midiLearn.tab = .general
+                } else {
+                    back()
+                }
             }
             MenuScroll {
-                VStack(alignment: .leading, spacing: 8) {
-                    if dev == nil {
-                        tabs
-                        Divider().overlay(theme.line).padding(.vertical, 6)
-                    }
-                    section(dev)
-                }
-                .padding(.trailing, 6)
+                section(devices, dev).padding(.trailing, 6)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .modifier(MidiDeviceAlerts(model: model))
     }
 
-    private func section(_ dev: String?) -> AnyView {
+    private func section(_ devices: Bool, _ dev: String?) -> AnyView {
         if let d = dev { return AnyView(MidiDevicePage(model: model, name: d, close: close)) }
-        switch tab {
-        case .general:
-            return AnyView(MidiGeneralTab(model: model, close: close))
-        case .devices:
-            return AnyView(MidiDevicesTab(model: model))
-        }
-    }
-
-    private var tabs: some View {
-        HStack(spacing: 4) {
-            ForEach(MidiTab.allCases, id: \.self) { t in
-                MenuItem(title: t.rawValue, current: tab == t) { model.midiLearn.tab = t }
-            }
-        }
+        if devices { return AnyView(MidiDevicesTab(model: model)) }
+        return AnyView(MidiGeneralTab(model: model, close: close))
     }
 }
 
-/// GENERAL: MIDI LEARN, KNOB PRESS, Bluetooth MIDI. Вход и выход нот — только у дорожек (меню звука → MIDI; 8.11).
+/// Меню MIDI: DEVICES (вложенное меню), MIDI LEARN, KNOB PRESS, Bluetooth MIDI. Вход и выход нот — только у дорожек (меню звука → MIDI; 8.11).
 struct MidiGeneralTab: View {
     let model: AppModel
     let close: () -> Void
@@ -66,12 +54,14 @@ struct MidiGeneralTab: View {
         let m: AppModel = model
         let close: () -> Void = self.close
         let touch: Bool = m.settings.midi.pressTouch
+        let on: Int = m.settings.midi.devices.filter { $0.on }.count
         var rows: [FormRow] = [
+            .view(AnyView(MidiMapLine(label: "DEVICES", value: "\(on) on") { m.midiLearn.tab = .devices })),
             .choices([MenuChoice(title: "MIDI LEARN", current: false) {
                 close()
                 m.setLearn(true)
             }]),
-            .note("MIDI LEARN: tap a knob or button on screen, then move a control. The mapping is saved to the device the control belongs to (DEVICES). Knobs are mapped by position in the 4×4 grid and follow the current mode (track, FX, MOD, MIX, MST); switch to PRESS to map a knob’s push button. Double-tap a target to open MIDI MAP. Hold a step to p-lock, hold LFO/ENV to set modulation."),
+            .note("MIDI LEARN: tap a knob or button on screen, then move a control. The mapping is saved to the device the control belongs to (see DEVICES). Knobs are mapped by position in the 4×4 grid and follow the current mode (track, FX, MOD, MIX, MST); switch to PRESS to map a knob’s push button. Double-tap a target to open MIDI MAP. Hold a step to p-lock, hold LFO/ENV to set modulation."),
             // Нажатие ручки (18.11, решение пользователя): TOUCH — как палец, MIDI MAP — Action маппинга.
             .label("KNOB PRESS"),
             .choices([MenuChoice(title: "TOUCH", current: touch) { m.setMidi { $0.pressTouch = true } },
