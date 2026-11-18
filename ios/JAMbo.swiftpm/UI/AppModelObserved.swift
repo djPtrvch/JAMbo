@@ -407,6 +407,10 @@ extension AppModel {
         get { access(keyPath: \._masterMenu); return _masterMenu }
         set { put(\._masterMenu, newValue, observedChanged(_masterMenu, newValue)) }
     }
+    var makeupState: Int {
+        get { access(keyPath: \._makeupState); return _makeupState }
+        set { put(\._makeupState, newValue, observedChanged(_makeupState, newValue)) }
+    }
     var masterUnity: Bool {
         get { access(keyPath: \._masterUnity); return _masterUnity }
         set { put(\._masterUnity, newValue, observedChanged(_masterUnity, newValue)) }

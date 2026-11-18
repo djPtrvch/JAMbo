@@ -167,6 +167,7 @@ struct MasterStrip: View {
         if p.id == "cmp.ratio" { return { model.tapRatio() } }
         if p.id == "sat.type" { return { model.tapSatType() } }
         if p.id == "cmp.release" || p.id == "lim.release" { return { model.tapRelease(p) } }
+        if p.id == "cmp.makeup" { return { model.tapMakeup() } }
         return nil
     }
 
@@ -237,7 +238,8 @@ struct MasterField: View {
 
     var body: some View {
         let v: Double = model.masterValue(param)
-        let value: String = param.format(v).replacingOccurrences(of: "\n", with: " ")
+        let plain: String = param.format(v).replacingOccurrences(of: "\n", with: " ")
+        let value: String = param.id == "cmp.makeup" ? model.makeupLabel(plain) : plain
         return VStack(alignment: .leading, spacing: 0) {
             Text(param.label.uppercased()).font(.system(size: 9)).tracking(0.8).foregroundStyle(theme.dim)
                 .lineLimit(1)

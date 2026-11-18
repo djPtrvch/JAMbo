@@ -83,6 +83,65 @@ extension AppModel {
         edit { pr in pr.master[p.id] = next }
     }
 
+    /// Тап по полю MAKEUP (AUTO MAKEUP, 18.11, решение пользователя): компрессор 4 с слушает, что играет, и MAKEUP
+    /// выставляется на разницу громкости входа и выхода (фильтр K) — с компрессором так же громко, как без него
+    /// (одна запись UNDO). Тап во время замера — отмена; тап по выставленному — последнее ручное значение. Тише −50 dB —
+    /// NO SIGNAL, MAKEUP прежний.
+    func tapMakeup() {
+        guard let p = Params.byId["cmp.makeup"] else { return }
+        let chain: MasterChain = audio.core.master
+        if makeupState == 1 {
+            chain.measureGen.store(0)
+            makeupState = 0
+            return
+        }
+        if makeupLive {
+            let back: Double = makeupManual ?? p.def
+            makeupState = 0
+            edit { pr in pr.master[p.id] = back }
+            return
+        }
+        makeupManual = masterValue(p)
+        makeupRun += 1
+        let run: Int = makeupRun
+        chain.measureIn.store(-240)
+        chain.measureOut.store(-240)
+        chain.measureGen.store(run)
+        makeupState = 1
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4) { [weak self] in
+            guard let self = self, self.makeupRun == run, self.makeupState == 1 else { return }
+            chain.measureGen.store(0)
+            let inDb: Double = Double(chain.measureIn.load())
+            let outDb: Double = Double(chain.measureOut.load())
+            if inDb < -50 {
+                self.makeupState = 3
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+                    if let m = self, m.makeupRun == run, m.makeupState == 3 { m.makeupState = 0 }
+                }
+                return
+            }
+            let mk: Double = MasterInput.clamp(p, ((inDb - outDb) * 10).rounded() / 10)
+            self.edit { pr in pr.master[p.id] = mk }
+            self.makeupApplied = mk
+            self.makeupState = 2
+        }
+    }
+
+    /// AUTO MAKEUP выставлен и MAKEUP с тех пор не меняли.
+    var makeupLive: Bool {
+        guard makeupState == 2, let p = Params.byId["cmp.makeup"] else { return false }
+        return abs(masterValue(p) - makeupApplied) < 1e-6
+    }
+
+    /// Значение поля MAKEUP: замер, тишина, AUTO с числом или обычное.
+    func makeupLabel(_ plain: String) -> String {
+        switch makeupState {
+        case 1: return "MEASURING…"
+        case 3: return "NO SIGNAL"
+        default: return makeupLive ? "AUTO " + plain : plain
+        }
+    }
+
     /// Параметры модуля m в строке окна (по порядку полей).
     static func masterFields(_ m: Int) -> [ParamDef] {
         return MasterPresetBook.ids(m).compactMap { Params.byId[$0] }

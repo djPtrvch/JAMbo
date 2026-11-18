@@ -468,6 +468,12 @@ final class AppModel {
     @ObservationIgnored var _masterUnity: Bool = false
     /// Последний ручной RELEASE компрессора и лимитера (тап по полю RELEASE — AUTO и обратно), не в проекте.
     @ObservationIgnored var releaseManual: [String: Double] = [:]
+    /// AUTO MAKEUP компрессора (тап по полю MAKEUP): 0 — нет, 1 — замер, 2 — выставлен (пока MAKEUP = makeupApplied),
+    /// 3 — тишина (NO SIGNAL); последнее ручное значение, выставленное, номер замера. Не в проекте.
+    @ObservationIgnored var _makeupState: Int = 0
+    @ObservationIgnored var makeupManual: Double? = nil
+    @ObservationIgnored var makeupApplied: Double = -1
+    @ObservationIgnored var makeupRun: Int = 0
     /// Пресеты модулей мастера — общие для проектов (UserDefaults).
     var masterPresets: MasterPresetBook = AppModel.loadMasterPresets()
     /// Свои значения ручек по умолчанию (UserDefaults) и ручка, на которой на секунду видно SAVED.

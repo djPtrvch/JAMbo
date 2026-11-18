@@ -7,6 +7,8 @@ import Foundation
 // GR сглаживается в dB: атака ATTACK, релиз RELEASE или AUTO (быстрый 60 мс и медленный 1,2 с).
 // Выход = вход·(1 − MIX) + вход·GR·Makeup·MIX; BYPASS — кроссфейд 10 мс. Параметры сглаживаются за 20 мс.
 // Индикация (S5c): за кадр 256 отсчётов — пик входа, уровень детектора (dB), GR (dB), пик выхода.
+// AUTO MAKEUP (18.11, решение пользователя): пока measuring — суммы квадратов входа после фильтра K (BS.1770, 48 кГц)
+// и того же сигнала с усилением компрессора без MAKEUP (с MIX и BYPASS): разница — MAKEUP для той же громкости.
 
 /// |x| без обобщённого abs (в отладочной сборке — вызов через протоколы; S14b).
 @_transparent private func glueAbs(_ x: Double) -> Double { x < 0 ? -x : x }
@@ -62,6 +64,19 @@ public final class MasterGlue {
     public private(set) var frameGr: Double = 0
     public private(set) var frameOut: Double = 0
     public private(set) var frames = 0
+    /// AUTO MAKEUP: замер идёт; суммы квадратов (вход и выход без MAKEUP, после фильтра K) и число отсчётов.
+    public var measuring: Bool = false
+    public private(set) var kSumIn: Double = 0
+    public private(set) var kSumOut: Double = 0
+    public private(set) var kCount: Int = 0
+    /// Фильтр K: полка и ФВЧ, L и R (x1, x2, y1, y2).
+    let kf: UnsafeMutablePointer<Double> = {
+        let p = UnsafeMutablePointer<Double>.allocate(capacity: 16)
+        p.initialize(repeating: 0, count: 16)
+        return p
+    }()
+
+    deinit { kf.deallocate() }
 
     public init(sampleRate: Double) {
         sr = sampleRate
@@ -72,6 +87,17 @@ public final class MasterGlue {
         kAutoFast = MasterGlue.coef(MasterGlue.autoFastMs, sampleRate)
         kAutoSlow = MasterGlue.coef(MasterGlue.autoSlowMs, sampleRate)
         updateHpf(90)
+    }
+
+    public func resetMeasure() {
+        kSumIn = 0
+        kSumOut = 0
+        kCount = 0
+        var i: Int = 0
+        while i < 16 {
+            kf[i] = 0
+            i += 1
+        }
     }
 
     static func coef(_ ms: Double, _ sr: Double) -> Double { return ms <= 0 ? 0 : exp(-1 / ((ms / 1000) * sr)) }
@@ -138,6 +164,8 @@ public final class MasterGlue {
         var zl1 = self.zl1, zl2 = self.zl2, zl3 = self.zl3, zl4 = self.zl4
         var zr1 = self.zr1, zr2 = self.zr2, zr3 = self.zr3, zr4 = self.zr4
         var mIn = self.mIn, mGr = self.mGr, mOut = self.mOut, mDet = self.mDet
+        let meas: Bool = measuring
+        var sIn: Double = 0, sOut: Double = 0
         var i = 0
         while i < n {
             let xl = Double(inL[i])
@@ -179,6 +207,12 @@ public final class MasterGlue {
             let k: Double = 1 - mix + g * mix
             let f: Double = wet * k + (1 - wet)
             let yl: Double = xl * f, yr: Double = xr * f
+            if meas {
+                let e: Double = kWeigh(xl, 0) + kWeigh(xr, 8)
+                let f0: Double = wet * (1 - mix + pow(10, -gr / 20) * mix) + (1 - wet)
+                sIn += e
+                sOut += e * f0 * f0
+            }
             outL[i] = Float(yl)
             outR[i] = Float(yr)
             let ao: Double = Swift.max(glueAbs(yl), glueAbs(yr))
@@ -193,6 +227,11 @@ public final class MasterGlue {
         self.thr = thr; self.makeupDb = makeupDb; self.slope = slope; self.knee = knee; self.mix = mix; self.wet = wet
         self.zl1 = zl1; self.zl2 = zl2; self.zl3 = zl3; self.zl4 = zl4
         self.zr1 = zr1; self.zr2 = zr2; self.zr3 = zr3; self.zr4 = zr4
+        if meas {
+            kSumIn += sIn
+            kSumOut += sOut
+            kCount += n
+        }
         meterN += n
         if meterN >= MasterGlue.meterFrames {
             frameIn = mIn; frameDet = mDet; frameGr = mGr; frameOut = mOut
@@ -201,5 +240,18 @@ public final class MasterGlue {
             mIn = 0; mGr = 0; mOut = 0; mDet = -240
         }
         self.mIn = mIn; self.mGr = mGr; self.mOut = mOut; self.mDet = mDet
+    }
+
+    /// Отсчёт после фильтра K (полка + ФВЧ, коэффициенты BS.1770 для 48 кГц), квадрат; o — 0 (L) или 8 (R).
+    @inline(__always)
+    private func kWeigh(_ x: Double, _ o: Int) -> Double {
+        let kf: UnsafeMutablePointer<Double> = self.kf
+        let s0: Double = 1.53512485958697 * x - 2.69169618940638 * kf[o] + 1.19839281085285 * kf[o + 1]
+            + 1.69065929318241 * kf[o + 2] - 0.73248077421585 * kf[o + 3] + MasterGlue.tiny
+        kf[o + 1] = kf[o]; kf[o] = x; kf[o + 3] = kf[o + 2]; kf[o + 2] = s0
+        let h: Double = s0 - 2 * kf[o + 4] + kf[o + 5] + 1.99004745483398 * kf[o + 6] - 0.99007225036621 * kf[o + 7]
+            + MasterGlue.tiny
+        kf[o + 5] = kf[o + 4]; kf[o + 4] = s0; kf[o + 7] = kf[o + 6]; kf[o + 6] = h
+        return h * h
     }
 }

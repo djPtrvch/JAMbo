@@ -86,6 +86,12 @@ public final class MasterChain {
     /// Как Unity Gain в Pro-L 2: звук −INPUT dB (у LIM — с учётом GUARD) в самом конце, после метров, LUFS, скопа и
     /// стемов (applyUnity) — метры и запись показывают и пишут уровень без UNITY; в BYPASS модуля — 0 dB.
     public let unity = AtomicCounter()
+    /// AUTO MAKEUP: поколение замера (UI: новое — начать сначала, 0 — не мерить); итог — громкость входа и выхода без
+    /// MAKEUP за замер, dB (K-взвешенный средний квадрат).
+    public let measureGen = AtomicCounter()
+    public let measureIn = AtomicFloat(-240)
+    public let measureOut = AtomicFloat(-240)
+    private var measureSeen: Int = 0
     /// GUARD: на сколько dB сейчас убавлен вход лимитера (для экрана).
     public let limGuardCut = AtomicFloat(0)
     /// Точки съёма скопа (после SAT, COMP, CLIP, LIM; гониометр пишет AudioCore).
@@ -139,9 +145,20 @@ public final class MasterChain {
         let sm: Int = scope.mask.load()
         let un: Int = unity.load()
         scope.tap(MasterScope.sat, sm, left, right, n)
+        let mg: Int = measureGen.load()
+        if mg != measureSeen {
+            measureSeen = mg
+            glue.resetMeasure()
+        }
+        glue.measuring = mg > 0
         glue.process(inL: left, inR: right, outL: left, outR: right, frames: n, thr: p[I.cmpThr], att: p[I.cmpAtt],
                      rel: p[I.cmpRel], auto: p[I.cmpAuto] >= 0.5, makeup: p[I.cmpMakeup], ratio: p[I.cmpRatio],
                      knee: p[I.cmpKnee], mix: p[I.cmpMix], schpf: p[I.cmpSchpf], bypass: p[I.cmpBypass])
+        if mg > 0 && glue.kCount > 0 {
+            let c: Double = Double(glue.kCount)
+            measureIn.store(Float(10 * log10(glue.kSumIn / c + 1e-30)))
+            measureOut.store(Float(10 * log10(glue.kSumOut / c + 1e-30)))
+        }
         scope.tap(MasterScope.comp, sm, left, right, n)
         clip.process(inL: left, inR: right, outL: left, outR: right, frames: n, drive: p[I.clipDrive],
                      ceiling: p[I.clipCeiling], softness: p[I.clipSoftness], bass: p[I.clipBass],
