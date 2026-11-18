@@ -44,8 +44,8 @@ struct EditorBar: View {
                 } else {
                     monoButton
                     cutButton
-                    ToolButton(title: "TRIM", enabled: data != nil && !sel.full, width: nil) { model.trimSample(sel.a, sel.b) }
-                    ToolButton(title: "NORMALIZE", enabled: data != nil, width: nil) { model.normalizeSample() }
+                    ToolButton(title: "TRIM", enabled: data != nil && !sel.full, width: nil, quiet: true) { model.trimSample(sel.a, sel.b) }
+                    ToolButton(title: "NORMALIZE", enabled: data != nil, width: nil, quiet: true) { model.normalizeSample() }
                     clearButton
                 }
             }
@@ -66,16 +66,16 @@ struct EditorBar: View {
     }
 
     private var monoButton: some View {
-        ToolButton(title: "MONO", enabled: (data?.channels ?? 1) == 2, width: nil) { model.monoSample() }
+        ToolButton(title: "MONO", enabled: (data?.channels ?? 1) == 2, width: nil, quiet: true) { model.monoSample() }
     }
 
     /// CUT — вырезать выделенное маркерами обрезки (стык — кроссфейд 5 мс).
     private var cutButton: some View {
-        ToolButton(title: "CUT", enabled: data != nil && !sel.full, width: nil) { model.cutSample(sel.a, sel.b) }
+        ToolButton(title: "CUT", enabled: data != nil && !sel.full, width: nil, quiet: true) { model.cutSample(sel.a, sel.b) }
     }
 
     private var clearButton: some View {
-        ToolButton(title: "CLEAR", enabled: data != nil && model.sampleRec.take == nil, width: nil) { model.clearSample() }
+        ToolButton(title: "CLEAR", enabled: data != nil && model.sampleRec.take == nil, width: nil, quiet: true) { model.clearSample() }
     }
 
     /// ▶ без жёлтой подсветки (решение пользователя); во время прослушивания — ■; в WARP — по карте варпинга.
@@ -140,9 +140,9 @@ struct EditorBar: View {
         if play { playButton }
         monoButton
         cutButton
-        ToolButton(title: "TRIM", enabled: data != nil && !sel.full, width: nil) { model.trimSample(sel.a, sel.b) }
-        ToolButton(title: "NORMALIZE", enabled: data != nil, width: nil) { model.normalizeSample() }
-        ToolButton(title: "CLEAR", enabled: data != nil && model.sampleRec.take == nil, width: nil) { model.clearSample() }
+        ToolButton(title: "TRIM", enabled: data != nil && !sel.full, width: nil, quiet: true) { model.trimSample(sel.a, sel.b) }
+        ToolButton(title: "NORMALIZE", enabled: data != nil, width: nil, quiet: true) { model.normalizeSample() }
+        ToolButton(title: "CLEAR", enabled: data != nil && model.sampleRec.take == nil, width: nil, quiet: true) { model.clearSample() }
     }
 
     private var info: String {
@@ -165,10 +165,13 @@ struct ToolButton: View {
     var width: CGFloat? = 76
     /// Жирный шрифт (в редакторе сэмпла — LOAD и SAVE; остальные — обычным).
     var bold: Bool = false
+    /// Тусклая подпись (18.11, решение пользователя): правки сэмпла и WARP в строке редактора — тусклее LOAD, SAVE,
+    /// ▶ и REC, как второстепенное в окнах модулей мастера.
+    var quiet: Bool = false
     let action: () -> Void
 
     var body: some View {
-        let fg: Color = !enabled ? theme.off : (lit ? theme.onAccent : theme.text)
+        let fg: Color = !enabled ? theme.off : (lit ? theme.onAccent : (quiet ? theme.dim : theme.text))
         return Button(action: action) {
             Text(title).font(.system(size: 13, weight: bold ? .bold : .regular)).lineLimit(1).minimumScaleFactor(0.7)
                 .foregroundStyle(fg)
@@ -191,7 +194,8 @@ struct HoldToolButton: View {
     let hold: () -> Void
 
     var body: some View {
-        let fg: Color = !enabled ? theme.off : (lit ? theme.onAccent : (strike ? theme.dim : theme.text))
+        // Тусклая подпись, как у ToolButton quiet (WARP — второстепенная кнопка строки редактора); выключен — зачёркнута.
+        let fg: Color = !enabled ? theme.off : (lit ? theme.onAccent : theme.dim)
         let gesture = LongPressGesture(minimumDuration: 0.5).onEnded { _ in hold() }
             .exclusively(before: TapGesture().onEnded { tap() })
         return Text(title).font(.system(size: 13)).strikethrough(strike).lineLimit(1).minimumScaleFactor(0.7)

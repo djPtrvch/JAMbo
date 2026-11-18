@@ -106,10 +106,10 @@ struct WarpBar: View {
                             extraAction: { model.setWarpBpm(nil) }) { enter() }
             ForEach(0..<WarpBar.grids.count, id: \.self) { i in
                 let g: (String, Double) = WarpBar.grids[i]
-                ToolButton(title: g.0, lit: model.warpGrid == g.1, width: nil) { model.warpGrid = g.1 }
+                ToolButton(title: g.0, lit: model.warpGrid == g.1, width: nil, quiet: true) { model.warpGrid = g.1 }
             }
-            ToolButton(title: "AUTO WARP", enabled: has, width: nil) { model.autoWarp() }
-            ToolButton(title: "CLEAR WARP", enabled: has && marks > 0, width: nil) { model.clearWarp() }
+            ToolButton(title: "AUTO WARP", enabled: has, width: nil, quiet: true) { model.autoWarp() }
+            ToolButton(title: "CLEAR WARP", enabled: has && marks > 0, width: nil, quiet: true) { model.clearWarp() }
         }
     }
 

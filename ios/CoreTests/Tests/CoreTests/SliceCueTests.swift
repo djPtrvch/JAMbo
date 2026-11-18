@@ -45,7 +45,11 @@ final class SliceCueTests: XCTestCase {
         let s = t.pages[0][0]
         XCTAssertEqual(s.notes, [Params.sampleRoot], "на шаге — один кусок, в исходной высоте")
         XCTAssertEqual(s.locks["start"], 50)
-        XCTAssertEqual(s.locks["end"], 100)
+        XCTAssertNil(s.locks["end"], "граница, равная ручке End дорожки (100), — без p-lock")
+        // Ручка End дорожки сдвинута — конец куска закрепляется p-lock.
+        t.params["end"] = 80
+        t.writeSlices(pat, pages: 0...0, cuts: r.cuts)
+        XCTAssertEqual(t.pages[0][0].locks["end"], 100)
         // Есть маркеры с нотой — куски только по ним.
         marks.append(SliceMark(at: 0.25))
         notes = Slices.notes(marks, map: .chromatic, scale: 0, root: 0)

@@ -303,13 +303,16 @@ extension Track {
 
     /// Рисунок на страницы range открытого паттерна: прежние шаги этих страниц стираются, ноты — со своей длиной
     /// и velocity (Level ноты). Страницы вне range не трогаются. cuts — куски меток без ноты (по «ноте» куска —
-    /// отрезок сэмпла, доли длины): шаг играет исходную высоту (Params.sampleRoot) с p-lock Start и End; на шаге —
+    /// отрезок сэмпла, доли длины): шаг играет исходную высоту (Params.sampleRoot) с p-lock Start и End (кроме границы,
+    /// равной ручке дорожки); на шаге —
     /// не больше одного такого куска (первый).
     public mutating func writeSlices(_ pattern: [[SliceRhythm.Event]], pages range: ClosedRange<Int>,
                                      cuts: [Int: SliceRhythm.Cut] = [:]) {
         let lo: Int = Swift.max(0, range.lowerBound)
         let hi: Int = Swift.min(pages.count - 1, range.upperBound)
         if lo > hi { return }
+        let knobStart: Double = params["start"] ?? 0
+        let knobEnd: Double = params["end"] ?? 100
         changePages { ps in
             for p in lo...hi { ps[p] = Track.emptyPage() }
         }
@@ -323,8 +326,11 @@ extension Track {
                     withStep(base + e.step) { s in
                         s.on = true
                         s.addNote(Params.sampleRoot, len: e.len, vel: e.vel)
-                        s.locks["start"] = c.a * 100
-                        s.locks["end"] = c.b * 100
+                        // Граница, совпадающая с ручкой дорожки, — без p-lock (18.11, решение пользователя).
+                        let st: Double = c.a * 100
+                        let en: Double = c.b * 100
+                        if abs(st - knobStart) > 0.0001 { s.locks["start"] = st }
+                        if abs(en - knobEnd) > 0.0001 { s.locks["end"] = en }
                     }
                     continue
                 }
