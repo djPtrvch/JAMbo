@@ -1,6 +1,7 @@
 import Foundation
 
-/// Вкладки SETTINGS (S9d; APPEARANCE — вкладка; MIX, MORPH, LEVEL — решение
+/// Вкладки SETTINGS (S9d; частоты и размера буфера в настройках нет — всегда 48 кГц и 256; SCALE дисплеев
+/// мастера — в APPEARANCE; APPEARANCE — вкладка; MIX, MORPH, LEVEL — решение
 /// пользователя).
 /// Порядок (3.11, решение пользователя) — по рядам из трёх: RECORD, SAMPLER, ARRANGE / MORPH, MIX, RANDOM /
 /// LEVEL, DUCK, DEFAULTS / APPEARANCE, AUDIO ENGINE, OUTPUT.

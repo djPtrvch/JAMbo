@@ -1,7 +1,7 @@
 import Foundation
 
 // Свои движки JAMbo: константы и таблицы. Таблицы считаются один раз
-// (вне колбэка) в Double и хранятся во Float.
+// (вне колбэка) в Double (точность эталонов) и хранятся во Float.
 
 enum Jambo {
     static let drum = 16
