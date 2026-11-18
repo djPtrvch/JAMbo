@@ -101,6 +101,8 @@ final class AppModel {
     @ObservationIgnored var _morphUsed: Bool = false
     /// SHIFT + MORPH держат — все дорожки (отпустили — MORPH выключается).
     @ObservationIgnored var _morphAllHeld: Bool = false
+    /// SHIFT отпустили раньше MORPH: дальше — выбранная дорожка, отпускание MORPH выключает режим (18.11).
+    @ObservationIgnored var morphOffOnRelease: Bool = false
     /// Плавный возврат после выключения MORPH (SETTINGS → MORPH → RETURN; nil — нет).
     @ObservationIgnored var morphGlide: MorphGlide? = nil
     /// KEY VELOCITY (S12): толчки iPad (акселерометр).
