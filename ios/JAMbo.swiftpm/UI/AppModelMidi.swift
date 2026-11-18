@@ -140,6 +140,8 @@ extension AppModel {
         }
         guard param(s) != nil else { return }
         ensureAudio()
+        // Поворот нажатого с SHIFT энкодера — не тап и не запоминание значения по умолчанию.
+        midiRun.pressShift[s] = nil
         midiGesture("knob \(s) \(String(describing: m.src))")
         if heldSteps.isEmpty && canAssign, let src = heldSource {
             let a = assign(s)
@@ -152,7 +154,7 @@ extension AppModel {
         if fxMode { fxMidiPulse(s) }
     }
 
-    /// Нажатие ручки (PRESS): как палец на ручке (MIDI → MAPPING → KNOB PRESS = TOUCH, по умолчанию) или действие
+    /// Нажатие ручки (PRESS): как палец на ручке (MIDI → MAPPING → KNOB PRESS: TOUCH, по умолчанию) или действие
     /// из окна MIDI MAP — сброс, параметр позиции или кнопка.
     private func midiPress(_ s: Int, _ m: MidiMapping, _ down: Bool) {
         if settings.midi.pressTouch {
@@ -171,8 +173,11 @@ extension AppModel {
 
     /// Касание ручки с MIDI, как палец (KnobGrid): нажатие — ручка «под пальцем» (тап по LFO/ENV переносит
     /// назначение), двойное нажатие за 0,35 с — двойной тап (снять назначение, снять p-lock, меню дорожки в MIX).
+    /// С SHIFT — как пальцем (18.11): отпустили без поворота — SHIFT + тап (тип фильтра, Dly Time и Speed LFO по
+    /// темпу…), держат 1 с — значение ручки своё по умолчанию; двойное — сначала отменяет переключение первого.
     private func midiTouch(_ s: Int, _ down: Bool) {
         guard down else {
+            if midiRun.pressShift.removeValue(forKey: s) != nil && knobShift { knobShiftTap(s) }
             knobFingers.remove(s)
             knobTouch(s, false)
             return
@@ -181,6 +186,7 @@ extension AppModel {
         let now: Double = Date.timeIntervalSinceReferenceDate
         if let t = midiRun.pressTap[s], now - t < 0.35 {
             midiRun.pressTap[s] = nil
+            if knobShift { knobShiftTap(s, undo: true) }
             if heldSteps.isEmpty && canAssign, let src = heldSource {
                 clearAssign(s, lfo: src)
             } else {
@@ -188,10 +194,24 @@ extension AppModel {
             }
         } else {
             midiRun.pressTap[s] = now
+            if knobShift && channel != .mix { armPressSave(s) }
         }
         if channel != .mix {
             knobFingers.insert(s)
             knobTouch(s, true)
+        }
+    }
+
+    /// SHIFT + нажатие ручки: через 1 с, если не отпустили и не повернули, — её значение по умолчанию.
+    private func armPressSave(_ s: Int) {
+        midiRun.pressSerial += 1
+        let n: Int = midiRun.pressSerial
+        midiRun.pressShift[s] = n
+        Later.run(1.0) { [weak self] in
+            guard let self = self, self.midiRun.pressShift[s] == n, self.knobShift else { return }
+            self.midiRun.pressShift[s] = nil
+            self.midiRun.pressTap[s] = nil
+            self.saveKnobDefault(s)
         }
     }
 

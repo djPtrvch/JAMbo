@@ -135,6 +135,10 @@ struct MidiRuntime {
     var pagesDown: [Int] = []
     /// Последнее нажатие ручки по позиции (двойное — двойной тап).
     var pressTap: [Int: Double] = [:]
+    /// Нажатия ручек с SHIFT (режим TOUCH, 18.11): отпустили без поворота — SHIFT + тап; держат 1 с — значение по
+    /// умолчанию (как пальцем); номер — поколение нажатия (отложенное запоминание проверяет, что нажатие то же).
+    var pressShift: [Int: Int] = [:]
+    var pressSerial: Int = 0
     /// Обратная связь (S13d): отправленные значения, последнее сообщение с источника (без эха), поколение выходов MidiHost.
     var feedback = MidiFeedback()
     var feedbackHold: [MidiSource: Double] = [:]

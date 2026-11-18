@@ -159,7 +159,7 @@ struct MidiMapMain: View {
 
     private var continuous: Bool { return model.midiContinuous(m.target) }
 
-    /// Action нажатия ручки; при KNOB PRESS = TOUCH (MIDI → MAPPING) — как палец, без выбора.
+    /// Action нажатия ручки; при KNOB PRESS: TOUCH (MIDI → MAPPING) — как палец, без выбора.
     private var actionLine: AnyView {
         if model.settings.midi.pressTouch {
             return AnyView(MidiMapLine(label: "Action", value: "Touch (tap, double tap)"))
