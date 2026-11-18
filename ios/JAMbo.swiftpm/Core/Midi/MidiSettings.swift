@@ -11,9 +11,6 @@ public struct MidiSettings: Codable, Equatable, Sendable {
     /// Нажатие ручки (KNOB c.r PRESS) — как палец на ручке: нажатие — касание, двойное — двойной тап (по умолчанию);
     /// OFF — действие из окна MIDI MAP (Action). Решение пользователя.
     public var pressTouch: Bool = true
-    /// JAMboPAD, разъём MIDI OUT (SET_MIDI_OUT): 0 OFF, 1 CLOCK (по умолчанию в пэде), 2 ALL; сообщения пэдов — туда же.
-    public var padThru: Int = 1
-    public var padControls: Bool = false
 
     public init() {
         addBuiltIns()
@@ -26,8 +23,6 @@ public struct MidiSettings: Codable, Equatable, Sendable {
         let c = try decoder.container(keyedBy: CaseKey.self)
         devices = c.value(CaseKey("devices"), [])
         pressTouch = c.value(CaseKey("pressTouch"), true)
-        padThru = c.value(CaseKey("padThru"), 1)
-        padControls = c.value(CaseKey("padControls"), false)
         addBuiltIns()
     }
 
@@ -49,7 +44,5 @@ extension MidiSettings {
         var c = encoder.container(keyedBy: CaseKey.self)
         try c.encode(devices, forKey: CaseKey("devices"))
         try c.encode(pressTouch, forKey: CaseKey("pressTouch"))
-        try c.encode(padThru, forKey: CaseKey("padThru"))
-        try c.encode(padControls, forKey: CaseKey("padControls"))
     }
 }

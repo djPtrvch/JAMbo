@@ -6,6 +6,9 @@ import Observation
 struct MidiEndpoint: Identifiable, Equatable {
     let id: Int32
     let name: String
+    /// uniqueID сущности CoreMIDI (вход и выход одного устройства — одна сущность; 0 — нет): по нему ответ пэда
+    /// на входе сопоставляется с его выходом.
+    var entity: Int32 = 0
 }
 
 /// CoreMIDI (S13a): клиент, вход со всех источников (USB, сеть, Bluetooth — всё, что видит система), список
@@ -71,7 +74,7 @@ final class MidiHost {
                 let ref: UnsafeMutableRawPointer? = UnsafeMutableRawPointer(bitPattern: Int(id))
                 if MIDIPortConnectSource(inPort, src, ref) == noErr { now.append(src) }
             }
-            ins.append(MidiEndpoint(id: id, name: MidiHost.name(src)))
+            ins.append(MidiEndpoint(id: id, name: MidiHost.name(src), entity: MidiHost.entity(src)))
             i += 1
         }
         for src in connected where !now.contains(src) { MIDIPortDisconnectSource(inPort, src) }
@@ -83,7 +86,7 @@ final class MidiHost {
         while j < m {
             let dst: MIDIEndpointRef = MIDIGetDestination(j)
             let id: Int32 = MidiHost.uniqueID(dst)
-            outs.append(MidiEndpoint(id: id, name: MidiHost.name(dst)))
+            outs.append(MidiEndpoint(id: id, name: MidiHost.name(dst), entity: MidiHost.entity(dst)))
             dests[id] = dst
             j += 1
         }
@@ -238,6 +241,12 @@ final class MidiHost {
         var v: Int32 = 0
         MIDIObjectGetIntegerProperty(obj, kMIDIPropertyUniqueID, &v)
         return v
+    }
+
+    private static func entity(_ ep: MIDIEndpointRef) -> Int32 {
+        var e: MIDIEntityRef = 0
+        if MIDIEndpointGetEntity(ep, &e) != noErr || e == 0 { return 0 }
+        return uniqueID(e)
     }
 
     private static func name(_ obj: MIDIObjectRef) -> String {

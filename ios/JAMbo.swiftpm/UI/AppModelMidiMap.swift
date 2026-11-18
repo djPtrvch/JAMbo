@@ -78,12 +78,11 @@ extension AppModel {
 
     // MARK: — устройства (MIDI → DEVICES)
 
-    /// Включить или выключить устройство; включённый контроллер сразу получает своё состояние и SET_MIDI_OUT.
+    /// Включить или выключить устройство; включённый контроллер сразу получает своё состояние (пэды — и HELLO).
     func setDeviceOn(_ name: String, _ on: Bool) {
         setMidi { $0.setOn(name, on) }
-        guard on, let c = settings.midi.device(name)?.controller else { return }
-        midiRun.controllerGen = -1
-        if c is JamboPad { setPadMidiOut() }
+        guard settings.midi.device(name)?.controller != nil else { return }
+        if on { midiRun.controllerGen = -1 } else { midiLearn.pads = [:] }
     }
 
     func renameDevice(_ from: String, to: String) {

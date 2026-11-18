@@ -24,6 +24,9 @@ public enum ControllerEvent: Equatable, Sendable {
     case root(Int)
     /// Гамма — индекс в Scales.all (выбрана на контроллере).
     case scale(Int)
+    /// Ответ пэда на HELLO (JAMboPAD): сторона (0 RIGHT, 1 LEFT), разъём MIDI OUT (0 OFF, 1 CLOCK, 2 ALL) и
+    /// сообщения пэда туда же.
+    case pad(side: Int, thru: Int, controls: Bool)
 }
 
 public protocol MidiController {
@@ -63,6 +66,10 @@ public struct JamboPad: MidiController {
     public static let header: [UInt8] = [0x7D, 0x4A, 0x50]
     public static let setScale: UInt8 = 0x0C
     public static let setMidiOut: UInt8 = 0x0D
+    public static let hello: UInt8 = 0x01
+    public static let reply: UInt8 = 0x40
+    public static let sideRight = 0
+    public static let sideLeft = 1
     public static let rootEvent: UInt8 = 0x65
     public static let scaleEvent: UInt8 = 0x67
 
@@ -97,9 +104,24 @@ public struct JamboPad: MidiController {
         return header + [setMidiOut, UInt8(t), controls ? 1 : 0]
     }
 
-    /// ROOT (0x65): корневая нота, выбранная на пэде; SCALE (0x67): номер гаммы (маска после него — не нужна).
+    /// HELLO: пэд отвечает версией, стороной и настройкой MIDI OUT (docs/sysex.md).
+    public static var helloSysEx: [UInt8] { return header + [hello] }
+
+    /// Сторона пэда по имени (Bluetooth: «JAMboPAD L», «JAMboPAD R»); по USB имя одно — nil (сторона из HELLO).
+    public static func side(name: String) -> Int? {
+        if name.hasSuffix(" L") { return sideLeft }
+        if name.hasSuffix(" R") { return sideRight }
+        return nil
+    }
+
+    /// ROOT (0x65): корневая нота, выбранная на пэде; SCALE (0x67): номер гаммы (маска после него — не нужна);
+    /// ответ HELLO (0x41): статус, версия (3), формат, сторона, профиль, число профилей, MIDI OUT, сообщения пэда, …
     public func event(_ sysex: [UInt8]) -> ControllerEvent? {
         guard sysex.count >= 5, Array(sysex[0..<3]) == JamboPad.header else { return nil }
+        if sysex[3] == JamboPad.hello | JamboPad.reply {
+            guard sysex.count >= 14, sysex[4] == 0 else { return nil }
+            return .pad(side: Int(sysex[9]), thru: Int(sysex[12]), controls: sysex[13] != 0)
+        }
         let v: Int = Int(sysex[4])
         if sysex[3] == JamboPad.rootEvent { return v < 12 ? .root(v) : nil }
         if sysex[3] == JamboPad.scaleEvent { return v < Scales.all.count ? .scale(v) : nil }

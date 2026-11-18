@@ -51,6 +51,14 @@ final class ControllerTests: XCTestCase {
         XCTAssertEqual(JamboPad.midiOut(thru: 5, controls: false), [0x7D, 0x4A, 0x50, 0x0D, 2, 0])
         let pad = JamboPad()
         XCTAssertEqual(pad.event([0x7D, 0x4A, 0x50, 0x65, 7]), .root(7))
+        // Ответ HELLO: статус, версия 1.2.3, формат 2, сторона LEFT, профиль 0, 4 профиля, MIDI OUT ALL, сообщения пэда.
+        XCTAssertEqual(pad.event([0x7D, 0x4A, 0x50, 0x41, 0, 1, 2, 3, 2, 1, 0, 4, 2, 1, 0, 0]),
+                       .pad(side: 1, thru: 2, controls: true))
+        XCTAssertNil(pad.event([0x7D, 0x4A, 0x50, 0x41, 1]))
+        XCTAssertEqual(JamboPad.helloSysEx, [0x7D, 0x4A, 0x50, 0x01])
+        XCTAssertEqual(JamboPad.side(name: "JAMboPAD L"), 1)
+        XCTAssertEqual(JamboPad.side(name: "JAMboPAD R"), 0)
+        XCTAssertNil(JamboPad.side(name: "SMC-PAD"))
         XCTAssertNil(pad.event([0x7D, 0x4A, 0x50, 0x65, 12]))
         XCTAssertNil(pad.event([0x7D, 0x4A, 0x50, 0x4D, 0]))
         XCTAssertNil(pad.event([0x00, 0x20, 0x29, 0x65, 1]))

@@ -14,12 +14,14 @@ extension AppModel {
         return midi.outputs.filter { c.owns($0.name) }.map { $0.id }
     }
 
-    /// Каждый кадр: состояние изменилось или выходы переподключились — слать контроллерам.
+    /// Каждый кадр: состояние изменилось или выходы переподключились — слать контроллерам. После переподключения —
+    /// HELLO пэдам JAMboPAD (сторона и настройка MIDI OUT каждого).
     func tickControllers() {
         if !midi.started { return }
         let st: ControllerState = controllerState
         if st == midiRun.controllerState && midi.generation == midiRun.controllerGen { return }
-        if midi.generation != midiRun.controllerGen { addMidiPorts() }
+        let fresh: Bool = midi.generation != midiRun.controllerGen
+        if fresh { addMidiPorts() }
         midiRun.controllerState = st
         midiRun.controllerGen = midi.generation
         let all: [Int32] = midi.outputs.map { $0.id }
@@ -28,27 +30,60 @@ extension AppModel {
             guard let b = c.stateSysEx(st) else { continue }
             midi.sendSysEx(b, to: c.stateToAll ? all : controllerOutputs(c))
         }
+        if fresh { helloPads() }
+    }
+
+    /// HELLO всем пэдам (если JAMboPAD включён); стороны по Bluetooth — сразу по имени.
+    func helloPads() {
+        midiRun.padSide = [:]
+        midiLearn.pads = [:]
+        let pad = JamboPad()
+        guard settings.midi.isOn(pad.name) else { return }
+        for o in midi.outputs where pad.owns(o.name) {
+            if let sd = JamboPad.side(name: o.name) { midiRun.padSide[o.id] = sd }
+        }
+        midi.sendSysEx(JamboPad.helloSysEx, to: controllerOutputs(pad))
+    }
+
+    /// Выходы пэда стороны side (0 RIGHT, 1 LEFT).
+    func padOutputs(_ side: Int) -> [Int32] {
+        return controllerOutputs(JamboPad()).filter { midiRun.padSide[$0] == side }
     }
 
     /// SysEx с входа: событие контроллера (ROOT — корневая нота, SCALE — гамма; в ответ уйдёт SET_SCALE).
     func controllerSysEx(_ bytes: [UInt8], source: Int32) {
+        if let e = JamboPad().event(bytes), case .pad(let side, let thru, let controls) = e {
+            padHello(source, side: side, out: PadOut(thru: thru, controls: controls))
+            return
+        }
         let ms: MidiSettings = settings.midi
         for c in Controllers.all where ms.isOn(c.name) {
             guard let e = c.event(bytes) else { continue }
             switch e {
             case .root(let r): setRoot(r)
             case .scale(let k): setScale(k)
+            case .pad: break
             }
             return
         }
     }
 
-    /// JAMboPAD, разъём MIDI OUT (SET_MIDI_OUT): хранится в настройках, сразу уходит на все SMC-PAD (если включён).
-    func setPadMidiOut(thru: Int? = nil, controls: Bool? = nil) {
-        setMidi { s in
-            if let t = thru { s.padThru = t }
-            if let c = controls { s.padControls = c }
+    /// Ответ HELLO с входа source: выходы той же сущности CoreMIDI — пэд этой стороны.
+    private func padHello(_ source: Int32, side: Int, out: PadOut) {
+        if let ent = midi.inputs.first(where: { $0.id == source })?.entity, ent != 0 {
+            for o in midi.outputs where o.entity == ent { midiRun.padSide[o.id] = side }
         }
+        midiLearn.pads[side] = out
+    }
+
+    /// JAMboPAD, разъём MIDI OUT пэда стороны side (SET_MIDI_OUT): сразу на этот пэд, он хранит у себя.
+    func setPadMidiOut(_ side: Int, thru: Int? = nil, controls: Bool? = nil) {
+        var o: PadOut = midiLearn.pads[side] ?? PadOut(thru: 1, controls: false)
+        if let t = thru { o.thru = t }
+        if let c = controls { o.controls = c }
+        midiLearn.pads[side] = o
+        midi.sendSysEx(JamboPad.midiOut(thru: o.thru, controls: o.controls), to: padOutputs(side))
+    }
         let ms: MidiSettings = settings.midi
         if !ms.isOn(JamboPad().name) { return }
         midi.sendSysEx(JamboPad.midiOut(thru: ms.padThru, controls: ms.padControls), to: controllerOutputs(JamboPad()))

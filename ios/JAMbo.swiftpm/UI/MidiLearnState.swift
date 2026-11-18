@@ -128,6 +128,13 @@ final class MidiLearnState {
         get { access(keyPath: \._exported); return _exported }
         set { put(\._exported, newValue, observedChanged(_exported, newValue)) }
     }
+    /// JAMboPAD: настройка MIDI OUT подключённых пэдов по стороне (0 RIGHT, 1 LEFT) — из ответа HELLO и после
+    /// своих правок; нет стороны — пэд не подключён (или не ответил).
+    @ObservationIgnored private var _pads: [Int: PadOut] = [:]
+    var pads: [Int: PadOut] {
+        get { access(keyPath: \._pads); return _pads }
+        set { put(\._pads, newValue, observedChanged(_pads, newValue)) }
+    }
     /// Переименование устройства (системное окно ввода).
     @ObservationIgnored private var _renaming: String? = nil
     var renaming: String? {
@@ -136,6 +143,12 @@ final class MidiLearnState {
     }
     /// Последний тап по цели в LEARN (двойной — окно MIDI MAP).
     @ObservationIgnored var lastTap: (target: MidiTarget, at: Double)? = nil
+}
+
+/// Разъём MIDI OUT пэда JAMboPAD: что идёт с USB на 3,5 мм (0 OFF, 1 CLOCK, 2 ALL) и сообщения пэда туда же.
+struct PadOut: Equatable {
+    var thru: Int
+    var controls: Bool
 }
 
 /// Ход маппингов вне интерфейса: состояния TOGGLE, нажатые MIDI-кнопки (отпускание — той же кнопке), жест энкодера.
@@ -162,6 +175,8 @@ struct MidiRuntime {
     /// Контроллеры (JAMboPAD): отправленное состояние и поколение выходов при отправке.
     var controllerState: ControllerState? = nil
     var controllerGen: Int = -1
+    /// Сторона пэда по uniqueID выхода (из ответа HELLO на входе той же сущности).
+    var padSide: [Int32: Int] = [:]
     /// MIDI-клок (S13e): SEND — планировщик; RECEIVE — входящий клок, шаг последней поправки фазы, игра на
     /// прошлом кадре (старт своей кнопкой — шаг 0 на ближайшем тике).
     var clockPlan = ClockPlan()

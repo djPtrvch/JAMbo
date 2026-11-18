@@ -103,7 +103,7 @@ final class MidiTests: XCTestCase {
     /// Настройки MIDI хранятся в AppSettings; старые настройки без них читаются со значениями по умолчанию.
     func testSettingsCoding() throws {
         var a = AppSettings()
-        a.midi.padControls = true
+        a.midi.pressTouch = false
         let back = AppSettings.decode(a.encode())
         XCTAssertEqual(back.midi, a.midi)
         let old = AppSettings.decode(Data("{\"velocity\":true}".utf8))

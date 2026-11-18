@@ -172,7 +172,7 @@ final class MidiMapTests: XCTestCase {
     func testSettingsBoxKeepsFormat() throws {
         var a = AppSettings()
         a.appearance = "DARK"
-        a.midi.padThru = 2
+        a.midi.pressTouch = false
         a.sync.quantum = 4
         a.sync.clockOuts = [7, 9]
         a.randomDrums = true
@@ -187,7 +187,7 @@ final class MidiMapTests: XCTestCase {
         let back = AppSettings.decode(data)
         XCTAssertEqual(back, a)
         XCTAssertEqual(back.sync.clockOuts, [7, 9])
-        XCTAssertEqual(back.midi.padThru, 2)
+        XCTAssertFalse(back.midi.pressTouch)
         XCTAssertTrue(back.knobColumns)
         // Старый файл без ключа — группы строками.
         XCTAssertFalse(AppSettings.decode(Data("{}".utf8)).knobColumns)

@@ -230,24 +230,35 @@ struct MidiMapRow: View {
     }
 }
 
-/// JAMboPAD (два SMC-PAD со своей прошивкой) — на странице устройства: разъём MIDI OUT пэдов (SET_MIDI_OUT — сразу на
-/// все SMC-PAD). Гамма уходит пэдам сама, пока устройство включено.
+/// JAMboPAD (два SMC-PAD со своей прошивкой) — на странице устройства: у левого и правого пэда свой разъём MIDI OUT
+/// (SET_MIDI_OUT — на этот пэд; сторону и нынешнюю настройку пэд сообщает в ответ на HELLO). Гамма уходит пэдам сама,
+/// пока устройство включено.
 enum JamboPadSection {
     static func rows(_ model: AppModel) -> [FormRow] {
+        var rows: [FormRow] = []
+        for side in [JamboPad.sideLeft, JamboPad.sideRight] { rows += pad(model, side) }
+        let known: Int = model.padOutputs(JamboPad.sideLeft).count + model.padOutputs(JamboPad.sideRight).count
+        let waiting: Int = model.controllerOutputs(JamboPad()).count - known
+        if waiting > 0 { rows.append(.note("Pads not identified yet: \(waiting) (no reply to HELLO).")) }
+        rows.append(.note("MIDI OUT: what each pad passes from JAMbo to its 3.5 mm jack — CLOCK: clock, start and stop; ALL: everything JAMbo sends to that pad (track notes, clock and the pad’s light feedback). PAD MESSAGES: the pad’s own notes and CC go to the jack too. Each pad keeps its setting. Scale, key note and keyboard octave are sent to the pads automatically (over USB); a key note or scale picked on a pad changes ROOT or SCALE. The mappings follow the pads’ default layout; change them to match yours, the arrow (swipe left in DEVICES) restores them."))
+        return rows
+    }
+
+    /// Пэд стороны side: подпись, OFF / CLOCK / ALL и рычажок PAD MESSAGES; не подключён — серые.
+    private static func pad(_ model: AppModel, _ side: Int) -> [FormRow] {
         let m: AppModel = model
-        let ms: MidiSettings = model.settings.midi
+        let name: String = side == JamboPad.sideLeft ? "LEFT" : "RIGHT"
+        let on: Bool = !m.padOutputs(side).isEmpty
+        let cur: PadOut? = m.midiLearn.pads[side]
         let titles: [String] = ["OFF", "CLOCK", "ALL"]
         var thru: [MenuChoice] = []
         for k in 0..<titles.count {
-            thru.append(MenuChoice(title: titles[k], current: ms.padThru == k) { m.setPadMidiOut(thru: k) })
+            thru.append(MenuChoice(title: titles[k], enabled: on, current: on && cur?.thru == k) { m.setPadMidiOut(side, thru: k) })
         }
-        let pads: Int = model.controllerOutputs(JamboPad()).count
-        let toggle: (Bool) -> Void = { (on: Bool) in m.setPadMidiOut(controls: on) }
-        return [
-            .label("PAD MIDI OUT"),
-            .choices(thru),
-            .toggle("PAD MESSAGES TO MIDI OUT", ms.padControls, toggle),
-            .note((pads == 0 ? "No pads connected. " : "Pads connected: \(pads). ") + "MIDI OUT: what the pads pass from JAMbo to their 3.5 mm jack — CLOCK: clock, start and stop; ALL: everything JAMbo sends them. Scale, key note and keyboard octave are sent to the pads automatically (over USB); a key note or scale picked on a pad changes ROOT or SCALE. The mappings follow the pads’ default layout; change them to match yours, the arrow (swipe left in DEVICES) restores them."),
-        ]
+        var rows: [FormRow] = [.label(name + " PAD MIDI OUT" + (on ? "" : " — NOT CONNECTED")), .choices(thru)]
+        if on {
+            rows.append(.toggle(name + " PAD MESSAGES TO MIDI OUT", cur?.controls ?? false) { m.setPadMidiOut(side, controls: $0) })
+        }
+        return rows
     }
 }
