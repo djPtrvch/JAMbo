@@ -7,7 +7,7 @@ enum MidiTab: String {
     case devices
 }
 
-/// Бутерброд → MIDI (S13a): стрелка назад и «MIDI», общее и кнопка DEVICES; DEVICES и открытое устройство —
+/// Бутерброд → MIDI (S13a): стрелка назад и «MIDI», кнопка DEVICES (как прежние вкладки), ниже — с чертой — общее; DEVICES и открытое устройство —
 /// вложенные меню (стрелка назад — на уровень выше).
 struct MidiMenuPage: View {
     let model: AppModel
@@ -31,7 +31,18 @@ struct MidiMenuPage: View {
                 }
             }
             MenuScroll {
-                section(devices, dev).padding(.trailing, 6)
+                VStack(alignment: .leading, spacing: 8) {
+                    if !devices {
+                        // Кнопка DEVICES — как прежние вкладки (той же ширины), открывает вложенное меню.
+                        HStack(spacing: 4) {
+                            MenuItem(title: "DEVICES", current: false) { m.midiLearn.tab = .devices }
+                            Color.clear.frame(maxWidth: .infinity, maxHeight: 1)
+                        }
+                        Divider().overlay(theme.line).padding(.vertical, 6)
+                    }
+                    section(devices, dev)
+                }
+                .padding(.trailing, 6)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -54,9 +65,7 @@ struct MidiGeneralTab: View {
         let m: AppModel = model
         let close: () -> Void = self.close
         let touch: Bool = m.settings.midi.pressTouch
-        let on: Int = m.settings.midi.devices.filter { $0.on }.count
         var rows: [FormRow] = [
-            .view(AnyView(MidiMapLine(label: "DEVICES", value: "\(on) on") { m.midiLearn.tab = .devices })),
             .choices([MenuChoice(title: "MIDI LEARN", current: false) {
                 close()
                 m.setLearn(true)
