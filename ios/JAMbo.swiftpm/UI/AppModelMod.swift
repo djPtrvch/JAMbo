@@ -129,8 +129,8 @@ extension AppModel {
     }
 
     /// Нажатие MORPH. Тап — режим на выбранной дорожке. SHIFT и MORPH держат одновременно (в любом порядке, 3.11) —
-    /// режим на всех дорожках, пока держат обе (выключен был — включается); отпустили — MORPH выключается, даже если
-    /// был включён тапом (решение пользователя 3.11). Режимы SWITCH и ALL TRACKS убраны (9.11, решение пользователя).
+    /// режим на всех дорожках (выключен был — включается); держится, пока держат хоть одну из двух (18.11), отпустили обе —
+    /// MORPH выключается, даже если был включён тапом (решение пользователя 3.11). Режимы SWITCH и ALL TRACKS убраны (9.11, решение пользователя).
     /// MODE HOLD (SETTINGS → MORPH, 9.11): нажатие MORPH сразу включает режим на выбранной дорожке, отпускание — выключает.
     func morphPress() {
         morphHeld = true
@@ -159,7 +159,7 @@ extension AppModel {
     func morphRelease() {
         morphHeld = false
         if morphAllHeld {
-            endMorphAllHold()
+            if !shiftHeld { endMorphAllHold() }
             return
         }
         if settings.morphHoldMode {
@@ -173,10 +173,10 @@ extension AppModel {
     /// SHIFT занята удержанием — ручки крутятся как без неё.
     var knobShift: Bool { return shiftHeld && !morphAllHeld }
 
-    /// Отпустили SHIFT: удержание SHIFT + MORPH кончилось.
+    /// Отпустили SHIFT: при ещё зажатой MORPH режим на всех дорожках держится (18.11, решение пользователя).
     func shiftReleased() {
         shiftHeld = false
-        if morphAllHeld { endMorphAllHold() }
+        if morphAllHeld && !morphHeld { endMorphAllHold() }
     }
 
     private func endMorphAllHold() {
@@ -184,10 +184,10 @@ extension AppModel {
         if morph { toggleMorph() }
     }
 
-    /// Ручка в MORPH меняет параметр на всех дорожках — только пока прямо сейчас держат и SHIFT, и MORPH (не по
+    /// Ручка в MORPH меняет параметр на всех дорожках — пока после SHIFT + MORPH держат хоть одну из них (не по
     /// оставшемуся флагу).
     var morphAllNow: Bool {
-        return morph && morphAllHeld && morphHeld && shiftHeld
+        return morph && morphAllHeld && (morphHeld || shiftHeld)
     }
 
     /// UNDO: с зажатой MORPH — сбросить изменения режима MORPH (режим не переключается), иначе — обычная отмена.
