@@ -115,3 +115,31 @@ public struct MasterPresetBook: Codable, Equatable, Sendable {
         return try? JSONEncoder().encode(self)
     }
 }
+
+// Запись — как у синтезированной, но без своего перечисления CodingKeys (общий CaseKey; объём сборки, 18.11).
+extension MasterPreset {
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CaseKey.self)
+        name = try c.decode(String.self, forKey: CaseKey("name"))
+        values = try c.decode([String: Double].self, forKey: CaseKey("values"))
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CaseKey.self)
+        try c.encode(name, forKey: CaseKey("name"))
+        try c.encode(values, forKey: CaseKey("values"))
+    }
+}
+
+// Запись — как у синтезированной, но без своего перечисления CodingKeys (общий CaseKey; объём сборки, 18.11).
+extension MasterPresetBook {
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CaseKey.self)
+        lists = try c.decode([[MasterPreset]].self, forKey: CaseKey("lists"))
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CaseKey.self)
+        try c.encode(lists, forKey: CaseKey("lists"))
+    }
+}

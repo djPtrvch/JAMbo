@@ -100,10 +100,11 @@ final class ProjectFileTests: XCTestCase {
         XCTAssertEqual(t.eq.bands[0]?.freq, 200)
     }
 
-    /// Каждое поле модели — в CodingKeys (иначе оно молча не сохранится).
+    /// Каждое поле модели — в списке ключей (иначе оно молча не сохранится; 18.11 — запись своя, без CodingKeys:
+    /// новое поле — в чтение, запись и сюда), и запись пишет только ключи из списка.
     func testCodingKeysCoverAllFields() {
         // except — поля вида, которые нарочно не пишутся (Track.editBlock — блок, открытый в STEPS аранжировщика).
-        func check<K: CaseIterable & RawRepresentable>(_ value: Any, _ keys: K.Type, except: Set<String> = []) where K.RawValue == String {
+        func check<T: Encodable>(_ value: T, _ keys: [String], except: Set<String> = []) {
             // Поля «в коробке» (8.11, объём сборки) пишутся под прежним ключом: srcBox → src, patternBox → pattern, homeBox → home.
             let boxed: [String: String] = ["srcBox": "src", "patternBox": "pattern", "homeBox": "home"]
             var labels: [String] = Mirror(reflecting: value).children.compactMap { $0.label }.map { boxed[$0] ?? $0 }
@@ -114,18 +115,27 @@ final class ProjectFileTests: XCTestCase {
                     .compactMap { $0.label }
             }
             let fields = Set(labels).subtracting(except)
-            XCTAssertEqual(fields, Set(K.allCases.map { $0.rawValue }), "\(type(of: value))")
+            XCTAssertEqual(fields, Set(keys), "\(type(of: value))")
+            let data: Data = try! JSONEncoder().encode(value)
+            let written = (try! JSONSerialization.jsonObject(with: data) as! [String: Any]).keys
+            XCTAssertTrue(Set(written).isSubset(of: Set(keys)), "\(type(of: value)): \(Set(written).subtracting(keys))")
         }
-        check(Project(), Project.CodingKeys.self)
-        check(Track(index: 0), Track.CodingKeys.self, except: ["editBlock"])
-        check(Clip(), Clip.CodingKeys.self)
-        check(Step(), Step.CodingKeys.self)
-        check(SceneRow(), SceneRow.CodingKeys.self)
-        check(ModAssign(lfo: 1, amount: 0), ModAssign.CodingKeys.self)
-        check(Eq(), Eq.CodingKeys.self)
-        check(EqBand(type: 0, freq: 100, gain: 0, q: 1), EqBand.CodingKeys.self)
-        check(Folder(), Folder.CodingKeys.self)
-        check(SliceMark(at: 0), SliceMark.CodingKeys.self)
+        check(Project(), ["version", "bpm", "scale", "root", "fx", "fxAssigns", "master", "satBypass", "cmpBypass",
+            "clipBypass", "limBypass", "outVol", "masterEq", "tracks", "chanSeqs", "scenes",
+            "rows", "arrStart", "arrEndStop", "plusCopy", "files", "roots", "rowLoop",
+            "arrowSwitch", "prevRow", "notice", "arrange", "gridHideSteps"])
+        check(Track(index: 0), ["id", "name", "sample", "params", "clips", "slot", "open", "mute", "solo", "stopped", "folder",
+            "slices", "vol", "trim", "table", "grain", "assigns", "morphOrig", "morphOrigAssign",
+            "morphEdited", "eq", "home", "midi", "blocks", "color", "autos", "warps", "drumStyle",
+            "arp", "keyOctave"], except: ["editBlock"])
+        check(Clip(), ["pages", "length", "playFrom", "playTo", "scale", "root", "fx", "src", "rate"])
+        check(Step(), ["on", "len", "notes", "lens", "vels", "locks", "sound", "soundLocks"])
+        check(SceneRow(), ["name", "repeats"])
+        check(ModAssign(lfo: 1, amount: 0), ["lfo", "amount", "track"])
+        check(Eq(), ["on", "bands"])
+        check(EqBand(type: 0, freq: 100, gain: 0, q: 1), ["on", "type", "freq", "gain", "q", "slope", "ms", "dyn", "thr", "range"])
+        check(Folder(), ["items", "index"])
+        check(SliceMark(at: 0), ["at", "note", "role", "free"])
     }
 
     func testNotAProject() {

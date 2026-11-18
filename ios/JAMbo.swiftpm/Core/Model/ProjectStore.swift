@@ -27,18 +27,17 @@ public struct ProjectInfo: Codable, Equatable, Sendable {
         self.projectName = projectName
     }
 
-    enum CodingKeys: String, CodingKey { case id, name, updated, projectId, projectName, bpm, root, scale }
 
     public init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: CodingKeys.self)
-        id = c.value(.id, "")
-        name = c.value(.name, "")
-        updated = c.value(.updated, 0)
-        projectId = c.optional(.projectId)
-        projectName = c.optional(.projectName)
-        bpm = c.value(.bpm, 120)
-        root = c.value(.root, 0)
-        scale = c.value(.scale, 0)
+        let c = try decoder.container(keyedBy: CaseKey.self)
+        id = c.value(CaseKey("id"), "")
+        name = c.value(CaseKey("name"), "")
+        updated = c.value(CaseKey("updated"), 0)
+        projectId = c.optional(CaseKey("projectId"))
+        projectName = c.optional(CaseKey("projectName"))
+        bpm = c.value(CaseKey("bpm"), 120)
+        root = c.value(CaseKey("root"), 0)
+        scale = c.value(CaseKey("scale"), 0)
     }
 }
 
@@ -106,6 +105,12 @@ public enum ProjectFormat {
     struct Head: Decodable {
         var format: String
         var version: Int
+
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CaseKey.self)
+            format = try c.decode(String.self, forKey: CaseKey("format"))
+            version = try c.decode(Int.self, forKey: CaseKey("version"))
+        }
     }
 }
 
@@ -193,5 +198,45 @@ public struct ProjectStore: Sendable {
     struct ListHead: Decodable {
         var format: String
         var info: ProjectInfo
+
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CaseKey.self)
+            format = try c.decode(String.self, forKey: CaseKey("format"))
+            info = try c.decode(ProjectInfo.self, forKey: CaseKey("info"))
+        }
+    }
+}
+
+// Запись — как у синтезированной, но без своего перечисления CodingKeys (общий CaseKey; объём сборки, 18.11).
+extension ProjectFile {
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CaseKey.self)
+        format = try c.decode(String.self, forKey: CaseKey("format"))
+        version = try c.decode(Int.self, forKey: CaseKey("version"))
+        info = try c.decode(ProjectInfo.self, forKey: CaseKey("info"))
+        doc = try c.decode(Project.self, forKey: CaseKey("doc"))
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CaseKey.self)
+        try c.encode(format, forKey: CaseKey("format"))
+        try c.encode(version, forKey: CaseKey("version"))
+        try c.encode(info, forKey: CaseKey("info"))
+        try c.encode(doc, forKey: CaseKey("doc"))
+    }
+}
+
+extension ProjectInfo {
+    /// Запись — как прежняя синтезированная, по тем же ключам (общий CaseKey; объём сборки, 18.11).
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CaseKey.self)
+        try c.encode(id, forKey: CaseKey("id"))
+        try c.encode(name, forKey: CaseKey("name"))
+        try c.encode(updated, forKey: CaseKey("updated"))
+        try c.encodeIfPresent(projectId, forKey: CaseKey("projectId"))
+        try c.encodeIfPresent(projectName, forKey: CaseKey("projectName"))
+        try c.encode(bpm, forKey: CaseKey("bpm"))
+        try c.encode(root, forKey: CaseKey("root"))
+        try c.encode(scale, forKey: CaseKey("scale"))
     }
 }

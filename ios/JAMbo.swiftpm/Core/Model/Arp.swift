@@ -16,17 +16,16 @@ public struct TrackArp: Codable, Equatable, Sendable {
 
     public init() {}
 
-    enum CodingKeys: String, CodingKey, CaseIterable { case mode, on, dir, rate, octaves, gate, latch }
 
     public init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: CodingKeys.self)
-        mode = c.value(.mode, false)
-        on = c.value(.on, false)
-        dir = Arp.clampDir(c.value(.dir, 0))
-        rate = Arp.clampRate(c.value(.rate, 2))
-        octaves = Arp.clampOctaves(c.value(.octaves, 1))
-        gate = Arp.clampGate(c.value(.gate, 0.5))
-        latch = c.value(.latch, false)
+        let c = try decoder.container(keyedBy: CaseKey.self)
+        mode = c.value(CaseKey("mode"), false)
+        on = c.value(CaseKey("on"), false)
+        dir = Arp.clampDir(c.value(CaseKey("dir"), 0))
+        rate = Arp.clampRate(c.value(CaseKey("rate"), 2))
+        octaves = Arp.clampOctaves(c.value(CaseKey("octaves"), 1))
+        gate = Arp.clampGate(c.value(CaseKey("gate"), 0.5))
+        latch = c.value(CaseKey("latch"), false)
     }
 
     /// Арпеджио играет: режим ARP и включён.
@@ -112,5 +111,19 @@ extension Track {
             }
             if let v = a.vel { setLock(base + a.step, "level", v) }
         }
+    }
+}
+
+extension TrackArp {
+    /// Запись — как прежняя синтезированная, по тем же ключам (общий CaseKey; объём сборки, 18.11).
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CaseKey.self)
+        try c.encode(mode, forKey: CaseKey("mode"))
+        try c.encode(on, forKey: CaseKey("on"))
+        try c.encode(dir, forKey: CaseKey("dir"))
+        try c.encode(rate, forKey: CaseKey("rate"))
+        try c.encode(octaves, forKey: CaseKey("octaves"))
+        try c.encode(gate, forKey: CaseKey("gate"))
+        try c.encode(latch, forKey: CaseKey("latch"))
     }
 }

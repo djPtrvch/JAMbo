@@ -220,3 +220,33 @@ extension Track {
         setAuto(id, pts)
     }
 }
+
+// Запись — как у синтезированной, но без своего перечисления CodingKeys (общий CaseKey; объём сборки, 18.11).
+extension ArrAutoPoint {
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CaseKey.self)
+        x = try c.decode(Double.self, forKey: CaseKey("x"))
+        y = try c.decode(Double.self, forKey: CaseKey("y"))
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CaseKey.self)
+        try c.encode(x, forKey: CaseKey("x"))
+        try c.encode(y, forKey: CaseKey("y"))
+    }
+}
+
+// Запись — как у синтезированной, но без своего перечисления CodingKeys (общий CaseKey; объём сборки, 18.11).
+extension ArrAutoLane {
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CaseKey.self)
+        param = try c.decode(String.self, forKey: CaseKey("param"))
+        points = try c.decode([ArrAutoPoint].self, forKey: CaseKey("points"))
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CaseKey.self)
+        try c.encode(param, forKey: CaseKey("param"))
+        try c.encode(points, forKey: CaseKey("points"))
+    }
+}

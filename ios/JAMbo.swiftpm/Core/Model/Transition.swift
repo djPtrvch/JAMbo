@@ -393,3 +393,34 @@ extension Project {
         return tracks.contains { $0.slot == last && !$0.stopped && $0.clipFilled(last) }
     }
 }
+
+// Запись — как у синтезированной, но без своего перечисления CodingKeys (общий CaseKey; объём сборки, 18.11).
+extension TrackSound.Fields {
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CaseKey.self)
+        sample = try c.decode(String.self, forKey: CaseKey("sample"))
+        params = try c.decode([String: Double].self, forKey: CaseKey("params"))
+        folder = try c.decode(Folder.self, forKey: CaseKey("folder"))
+        slices = try c.decode([String: [SliceMark]].self, forKey: CaseKey("slices"))
+        warps = try c.decodeIfPresent([String: WarpInfo].self, forKey: CaseKey("warps"))
+        table = try c.decode(String.self, forKey: CaseKey("table"))
+        grain = try c.decodeIfPresent(String.self, forKey: CaseKey("grain"))
+        assigns = try c.decode([String: ModAssign].self, forKey: CaseKey("assigns"))
+        eq = try c.decode(Eq.self, forKey: CaseKey("eq"))
+        vol = try c.decodeIfPresent(Double.self, forKey: CaseKey("vol"))
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CaseKey.self)
+        try c.encode(sample, forKey: CaseKey("sample"))
+        try c.encode(params, forKey: CaseKey("params"))
+        try c.encode(folder, forKey: CaseKey("folder"))
+        try c.encode(slices, forKey: CaseKey("slices"))
+        try c.encodeIfPresent(warps, forKey: CaseKey("warps"))
+        try c.encode(table, forKey: CaseKey("table"))
+        try c.encodeIfPresent(grain, forKey: CaseKey("grain"))
+        try c.encode(assigns, forKey: CaseKey("assigns"))
+        try c.encode(eq, forKey: CaseKey("eq"))
+        try c.encodeIfPresent(vol, forKey: CaseKey("vol"))
+    }
+}

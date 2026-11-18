@@ -20,30 +20,29 @@ public struct TrackMidi: Codable, Equatable, Sendable {
 
     public init() {}
 
-    private enum Keys: String, CodingKey { case inOn, inDevice, inName, inChannel, outDevice, outName, outChannel }
 
     public init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: Keys.self)
-        inOn = c.value(.inOn, false)
-        inDevice = c.optional(.inDevice)
-        inName = c.value(.inName, "")
-        let ic: Int = c.value(.inChannel, 0)
+        let c = try decoder.container(keyedBy: CaseKey.self)
+        inOn = c.value(CaseKey("inOn"), false)
+        inDevice = c.optional(CaseKey("inDevice"))
+        inName = c.value(CaseKey("inName"), "")
+        let ic: Int = c.value(CaseKey("inChannel"), 0)
         inChannel = ic >= 0 && ic <= 16 ? ic : 0
-        outDevice = c.optional(.outDevice)
-        outName = c.value(.outName, "")
-        let oc: Int = c.value(.outChannel, 1)
+        outDevice = c.optional(CaseKey("outDevice"))
+        outName = c.value(CaseKey("outName"), "")
+        let oc: Int = c.value(CaseKey("outChannel"), 1)
         outChannel = oc >= 1 && oc <= 16 ? oc : 1
     }
 
     public func encode(to encoder: Encoder) throws {
-        var c = encoder.container(keyedBy: Keys.self)
-        try c.encode(inOn, forKey: .inOn)
-        try c.encodeIfPresent(inDevice, forKey: .inDevice)
-        try c.encode(inName, forKey: .inName)
-        try c.encode(inChannel, forKey: .inChannel)
-        try c.encodeIfPresent(outDevice, forKey: .outDevice)
-        try c.encode(outName, forKey: .outName)
-        try c.encode(outChannel, forKey: .outChannel)
+        var c = encoder.container(keyedBy: CaseKey.self)
+        try c.encode(inOn, forKey: CaseKey("inOn"))
+        try c.encodeIfPresent(inDevice, forKey: CaseKey("inDevice"))
+        try c.encode(inName, forKey: CaseKey("inName"))
+        try c.encode(inChannel, forKey: CaseKey("inChannel"))
+        try c.encodeIfPresent(outDevice, forKey: CaseKey("outDevice"))
+        try c.encode(outName, forKey: CaseKey("outName"))
+        try c.encode(outChannel, forKey: CaseKey("outChannel"))
     }
 
     /// Ноты уходят на устройство (свой звук молчит).

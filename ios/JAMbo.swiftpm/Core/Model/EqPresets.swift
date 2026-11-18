@@ -86,3 +86,31 @@ extension Project {
         withEq(ch) { $0.apply(p, tracks: n) }
     }
 }
+
+// Запись — как у синтезированной, но без своего перечисления CodingKeys (общий CaseKey; объём сборки, 18.11).
+extension EqPreset {
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CaseKey.self)
+        name = try c.decode(String.self, forKey: CaseKey("name"))
+        bands = try c.decode([EqBand?].self, forKey: CaseKey("bands"))
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CaseKey.self)
+        try c.encode(name, forKey: CaseKey("name"))
+        try c.encode(bands, forKey: CaseKey("bands"))
+    }
+}
+
+// Запись — как у синтезированной, но без своего перечисления CodingKeys (общий CaseKey; объём сборки, 18.11).
+extension EqPresetBook {
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CaseKey.self)
+        list = try c.decode([EqPreset].self, forKey: CaseKey("list"))
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CaseKey.self)
+        try c.encode(list, forKey: CaseKey("list"))
+    }
+}

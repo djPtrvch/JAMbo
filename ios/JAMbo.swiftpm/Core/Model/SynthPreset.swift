@@ -45,14 +45,13 @@ public struct SynthPreset: Codable, Equatable, Sendable {
         return nil
     }
 
-    enum CodingKeys: String, CodingKey, CaseIterable { case name, sound, params, fmt, table, grain, mods, assigns }
 
     public init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: CodingKeys.self)
-        name = c.value(.name, "")
-        sound = c.value(.sound, "")
-        params = c.value(.params, [String: Double]())
-        fmt = c.optional(.fmt)
+        let c = try decoder.container(keyedBy: CaseKey.self)
+        name = c.value(CaseKey("name"), "")
+        sound = c.value(CaseKey("sound"), "")
+        params = c.value(CaseKey("params"), [String: Double]())
+        fmt = c.optional(CaseKey("fmt"))
         // fmt < 3 — до S12: ручки своих движков по SynthMigration (1.4).
         if (fmt ?? 1) < 3 {
             SynthMigration.params(sound, &params)
@@ -68,10 +67,10 @@ public struct SynthPreset: Codable, Equatable, Sendable {
             FilterMigration.preset(&params)
             fmt = 5
         }
-        table = c.optional(.table)
-        grain = c.optional(.grain)
-        mods = c.optional(.mods)
-        assigns = c.optional(.assigns)
+        table = c.optional(CaseKey("table"))
+        grain = c.optional(CaseKey("grain"))
+        mods = c.optional(CaseKey("mods"))
+        assigns = c.optional(CaseKey("assigns"))
     }
 }
 
@@ -102,23 +101,37 @@ public struct FolderItem: Codable, Equatable, Sendable, ExpressibleByStringLiter
     /// Ключ звука: сэмпл или движок пресета.
     public var key: String { return sample ?? preset?.sound ?? "" }
 
-    enum CodingKeys: String, CodingKey { case sample, preset }
 
     public init(from decoder: Decoder) throws {
         if let s = try? decoder.singleValueContainer().decode(String.self) {
             self.init(sample: s)
             return
         }
-        let c = try decoder.container(keyedBy: CodingKeys.self)
-        if let p: SynthPreset = c.optional(.preset) {
+        let c = try decoder.container(keyedBy: CaseKey.self)
+        if let p: SynthPreset = c.optional(CaseKey("preset")) {
             self.init(preset: p)
         } else {
-            self.init(sample: c.value(.sample, ""))
+            self.init(sample: c.value(CaseKey("sample"), ""))
         }
     }
 
     public func encode(to encoder: Encoder) throws {
-        var c = encoder.container(keyedBy: CodingKeys.self)
-        if let p = preset { try c.encode(p, forKey: .preset) } else { try c.encode(sample ?? "", forKey: .sample) }
+        var c = encoder.container(keyedBy: CaseKey.self)
+        if let p = preset { try c.encode(p, forKey: CaseKey("preset")) } else { try c.encode(sample ?? "", forKey: CaseKey("sample")) }
+    }
+}
+
+extension SynthPreset {
+    /// Запись — как прежняя синтезированная, по тем же ключам (общий CaseKey; объём сборки, 18.11).
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CaseKey.self)
+        try c.encode(name, forKey: CaseKey("name"))
+        try c.encode(sound, forKey: CaseKey("sound"))
+        try c.encode(params, forKey: CaseKey("params"))
+        try c.encodeIfPresent(fmt, forKey: CaseKey("fmt"))
+        try c.encodeIfPresent(table, forKey: CaseKey("table"))
+        try c.encodeIfPresent(grain, forKey: CaseKey("grain"))
+        try c.encodeIfPresent(mods, forKey: CaseKey("mods"))
+        try c.encodeIfPresent(assigns, forKey: CaseKey("assigns"))
     }
 }

@@ -13,12 +13,11 @@ public struct MidiPreset: Codable, Equatable, Sendable {
         self.mappings = mappings
     }
 
-    private enum CodingKeys: String, CodingKey { case name, mappings }
 
     public init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: CodingKeys.self)
-        name = try c.decode(String.self, forKey: .name)
-        let maps: [LossyMapping] = c.value(.mappings, [])
+        let c = try decoder.container(keyedBy: CaseKey.self)
+        name = try c.decode(String.self, forKey: CaseKey("name"))
+        let maps: [LossyMapping] = c.value(CaseKey("mappings"), [])
         mappings = maps.compactMap { $0.value }
     }
 }
@@ -82,5 +81,27 @@ public struct MidiPresetBook: Codable, Equatable, Sendable {
 
     public mutating func delete(_ name: String) {
         list.removeAll { $0.name == name }
+    }
+}
+
+// Запись — как у синтезированной, но без своего перечисления CodingKeys (общий CaseKey; объём сборки, 18.11).
+extension MidiPresetBook {
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CaseKey.self)
+        list = try c.decode([MidiPreset].self, forKey: CaseKey("list"))
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CaseKey.self)
+        try c.encode(list, forKey: CaseKey("list"))
+    }
+}
+
+extension MidiPreset {
+    /// Запись — как прежняя синтезированная, по тем же ключам (общий CaseKey; объём сборки, 18.11).
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CaseKey.self)
+        try c.encode(name, forKey: CaseKey("name"))
+        try c.encode(mappings, forKey: CaseKey("mappings"))
     }
 }

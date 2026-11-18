@@ -39,33 +39,28 @@ public struct SyncSettings: Codable, Equatable, Sendable {
 
     public init() {}
 
-    private enum CodingKeys: String, CodingKey {
-        case quantum, clock, send, receive, clockOuts, clockIn, midiStartStop, midiOffset, link, linkNotify, linkStartStop,
-             linkOffset
-    }
 
     /// Прежние ключи (до 8.11): source — SEND или RECEIVE, clockOut — один выход.
-    private enum LegacyKeys: String, CodingKey { case source, clockOut }
 
     /// Недостающие и испорченные поля — по умолчанию; квант и сдвиги — в своих пределах.
     public init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: CodingKeys.self)
-        let q: Int = c.value(.quantum, 1)
+        let c = try decoder.container(keyedBy: CaseKey.self)
+        let q: Int = c.value(CaseKey("quantum"), 1)
         quantum = SyncSettings.quanta.contains(q) ? q : 1
-        clock = c.value(.clock, false)
-        let old = try decoder.container(keyedBy: LegacyKeys.self)
-        let src: ClockSource = old.value(.source, .send)
-        send = c.value(.send, src == .send)
-        receive = c.value(.receive, src == .receive)
-        let one: Int32? = old.optional(.clockOut)
-        clockOuts = c.value(.clockOuts, one.map { [$0] } ?? [])
-        clockIn = c.optional(.clockIn)
-        midiStartStop = c.value(.midiStartStop, true)
-        midiOffset = SyncSettings.clampOffset(c.value(.midiOffset, 0))
-        link = c.value(.link, false)
-        linkNotify = c.value(.linkNotify, true)
-        linkStartStop = c.value(.linkStartStop, false)
-        linkOffset = SyncSettings.clampOffset(c.value(.linkOffset, 0))
+        clock = c.value(CaseKey("clock"), false)
+        let old = try decoder.container(keyedBy: CaseKey.self)
+        let src: ClockSource = old.value(CaseKey("source"), .send)
+        send = c.value(CaseKey("send"), src == .send)
+        receive = c.value(CaseKey("receive"), src == .receive)
+        let one: Int32? = old.optional(CaseKey("clockOut"))
+        clockOuts = c.value(CaseKey("clockOuts"), one.map { [$0] } ?? [])
+        clockIn = c.optional(CaseKey("clockIn"))
+        midiStartStop = c.value(CaseKey("midiStartStop"), true)
+        midiOffset = SyncSettings.clampOffset(c.value(CaseKey("midiOffset"), 0))
+        link = c.value(CaseKey("link"), false)
+        linkNotify = c.value(CaseKey("linkNotify"), true)
+        linkStartStop = c.value(CaseKey("linkStartStop"), false)
+        linkOffset = SyncSettings.clampOffset(c.value(CaseKey("linkOffset"), 0))
     }
 
     /// Клок, Start, Continue, Stop с источника source принимаются (вход клока — ALL INPUTS или этот).
@@ -99,5 +94,24 @@ public struct SyncSettings: Codable, Equatable, Sendable {
     public func phaseLit(beat: Int) -> Int {
         if beat < 0 { return 0 }
         return beat % phaseSegments + 1
+    }
+}
+
+extension SyncSettings {
+    /// Запись — как прежняя синтезированная, по тем же ключам (общий CaseKey; объём сборки, 18.11).
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CaseKey.self)
+        try c.encode(quantum, forKey: CaseKey("quantum"))
+        try c.encode(clock, forKey: CaseKey("clock"))
+        try c.encode(send, forKey: CaseKey("send"))
+        try c.encode(receive, forKey: CaseKey("receive"))
+        try c.encode(clockOuts, forKey: CaseKey("clockOuts"))
+        try c.encodeIfPresent(clockIn, forKey: CaseKey("clockIn"))
+        try c.encode(midiStartStop, forKey: CaseKey("midiStartStop"))
+        try c.encode(midiOffset, forKey: CaseKey("midiOffset"))
+        try c.encode(link, forKey: CaseKey("link"))
+        try c.encode(linkNotify, forKey: CaseKey("linkNotify"))
+        try c.encode(linkStartStop, forKey: CaseKey("linkStartStop"))
+        try c.encode(linkOffset, forKey: CaseKey("linkOffset"))
     }
 }

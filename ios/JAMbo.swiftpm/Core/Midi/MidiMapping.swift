@@ -234,23 +234,22 @@ public struct MidiMapping: Codable, Equatable, Sendable {
         self.control = continuous ? .abs : .momentary
     }
 
-    private enum CodingKeys: String, CodingKey { case src, target, control, enc, min, max, input, cond, page, port, press, place }
 
     /// Недостающие поля — по умолчанию; без источника или цели — ошибка (маппинг пропускается).
     public init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: CodingKeys.self)
-        src = try c.decode(MidiSource.self, forKey: .src)
-        target = try c.decode(MidiTarget.self, forKey: .target)
-        control = c.value(.control, .momentary)
-        enc = c.value(.enc, .offset)
-        min = c.value(.min, 0)
-        max = c.value(.max, 1)
-        input = c.optional(.input)
-        cond = c.value(.cond, .global)
-        page = c.value(.page, .track)
-        port = c.value(.port, .standard)
-        press = c.value(.press, .reset)
-        place = c.optional(.place)
+        let c = try decoder.container(keyedBy: CaseKey.self)
+        src = try c.decode(MidiSource.self, forKey: CaseKey("src"))
+        target = try c.decode(MidiTarget.self, forKey: CaseKey("target"))
+        control = c.value(CaseKey("control"), .momentary)
+        enc = c.value(CaseKey("enc"), .offset)
+        min = c.value(CaseKey("min"), 0)
+        max = c.value(CaseKey("max"), 1)
+        input = c.optional(CaseKey("input"))
+        cond = c.value(CaseKey("cond"), .global)
+        page = c.value(CaseKey("page"), .track)
+        port = c.value(CaseKey("port"), .standard)
+        press = c.value(CaseKey("press"), .reset)
+        place = c.optional(CaseKey("place"))
         if target.isClip && cond == .page { cond = .clip }
     }
 
@@ -339,5 +338,56 @@ enum CaseCoding {
     static func bad(_ decoder: Decoder) -> Error {
         return DecodingError.dataCorrupted(DecodingError.Context(codingPath: decoder.codingPath,
                                                                  debugDescription: "unknown case"))
+    }
+}
+
+// Запись — как у синтезированной, но без своего перечисления CodingKeys (общий CaseKey; объём сборки, 18.11).
+extension MidiSource {
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CaseKey.self)
+        type = try c.decode(MidiSourceType.self, forKey: CaseKey("type"))
+        ch = try c.decode(Int.self, forKey: CaseKey("ch"))
+        num = try c.decode(Int.self, forKey: CaseKey("num"))
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CaseKey.self)
+        try c.encode(type, forKey: CaseKey("type"))
+        try c.encode(ch, forKey: CaseKey("ch"))
+        try c.encode(num, forKey: CaseKey("num"))
+    }
+}
+
+// Запись — как у синтезированной, но без своего перечисления CodingKeys (общий CaseKey; объём сборки, 18.11).
+extension MidiPlace {
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CaseKey.self)
+        page = try c.decode(MidiPage.self, forKey: CaseKey("page"))
+        track = try c.decode(Int.self, forKey: CaseKey("track"))
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CaseKey.self)
+        try c.encode(page, forKey: CaseKey("page"))
+        try c.encode(track, forKey: CaseKey("track"))
+    }
+}
+
+extension MidiMapping {
+    /// Запись — как прежняя синтезированная, по тем же ключам (общий CaseKey; объём сборки, 18.11).
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CaseKey.self)
+        try c.encode(src, forKey: CaseKey("src"))
+        try c.encode(target, forKey: CaseKey("target"))
+        try c.encode(control, forKey: CaseKey("control"))
+        try c.encode(enc, forKey: CaseKey("enc"))
+        try c.encode(min, forKey: CaseKey("min"))
+        try c.encode(max, forKey: CaseKey("max"))
+        try c.encodeIfPresent(input, forKey: CaseKey("input"))
+        try c.encode(cond, forKey: CaseKey("cond"))
+        try c.encode(page, forKey: CaseKey("page"))
+        try c.encode(port, forKey: CaseKey("port"))
+        try c.encode(press, forKey: CaseKey("press"))
+        try c.encodeIfPresent(place, forKey: CaseKey("place"))
     }
 }

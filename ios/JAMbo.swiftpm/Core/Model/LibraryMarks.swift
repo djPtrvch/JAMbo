@@ -42,3 +42,18 @@ extension Track {
         if let w = m.warp { putWarp(key, w) }
     }
 }
+
+// Запись — как у синтезированной, но без своего перечисления CodingKeys (общий CaseKey; объём сборки, 18.11).
+extension SampleMarks {
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CaseKey.self)
+        slices = try c.decode([SliceMark].self, forKey: CaseKey("slices"))
+        warp = try c.decodeIfPresent(WarpInfo.self, forKey: CaseKey("warp"))
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CaseKey.self)
+        try c.encode(slices, forKey: CaseKey("slices"))
+        try c.encodeIfPresent(warp, forKey: CaseKey("warp"))
+    }
+}

@@ -127,30 +127,26 @@ public struct Arrangement: Codable, Equatable, Sendable {
 }
 
 extension ArrBlock {
-    enum CodingKeys: String, CodingKey, CaseIterable { case clip, start, length, offset, pattern, autos }
-    private enum LegacyKeys: String, CodingKey { case autoLink }
-
     public init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: CodingKeys.self)
-        clip = c.value(.clip, 0)
-        start = c.value(.start, 0)
-        length = c.value(.length, ArrGrid.stepsPerBar)
-        offset = c.value(.offset, 0)
-        pattern = c.optional(.pattern)
-        autos = c.value(.autos, [ArrAutoLane]())
-        let lc = try decoder.container(keyedBy: LegacyKeys.self)
-        legacyLink = (try? lc.decodeIfPresent(Bool.self, forKey: .autoLink)) ?? false
+        let c = try decoder.container(keyedBy: CaseKey.self)
+        clip = c.value(CaseKey("clip"), 0)
+        start = c.value(CaseKey("start"), 0)
+        length = c.value(CaseKey("length"), ArrGrid.stepsPerBar)
+        offset = c.value(CaseKey("offset"), 0)
+        pattern = c.optional(CaseKey("pattern"))
+        autos = c.value(CaseKey("autos"), [ArrAutoLane]())
+        legacyLink = (try? c.decodeIfPresent(Bool.self, forKey: CaseKey("autoLink"))) ?? false
     }
 
     /// Запись — как прежняя синтезированная (pattern — только если есть; legacyLink не пишется).
     public func encode(to encoder: Encoder) throws {
-        var c = encoder.container(keyedBy: CodingKeys.self)
-        try c.encode(clip, forKey: .clip)
-        try c.encode(start, forKey: .start)
-        try c.encode(length, forKey: .length)
-        try c.encode(offset, forKey: .offset)
-        try c.encodeIfPresent(pattern, forKey: .pattern)
-        try c.encode(autos, forKey: .autos)
+        var c = encoder.container(keyedBy: CaseKey.self)
+        try c.encode(clip, forKey: CaseKey("clip"))
+        try c.encode(start, forKey: CaseKey("start"))
+        try c.encode(length, forKey: CaseKey("length"))
+        try c.encode(offset, forKey: CaseKey("offset"))
+        try c.encodeIfPresent(pattern, forKey: CaseKey("pattern"))
+        try c.encode(autos, forKey: CaseKey("autos"))
     }
 
     /// Начало блока сдвинулось на d шагов вправо (TRIM слева, правая часть разреза): точки — на прежних местах таймлайна.
@@ -184,31 +180,29 @@ extension ArrBlock {
 }
 
 extension ArrMarker {
-    enum CodingKeys: String, CodingKey, CaseIterable { case at, name, color, end }
 
     public init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: CodingKeys.self)
-        at = c.value(.at, 0)
-        name = c.value(.name, "")
-        color = c.value(.color, ArrPalette.defaultColor)
-        end = c.optional(.end)
+        let c = try decoder.container(keyedBy: CaseKey.self)
+        at = c.value(CaseKey("at"), 0)
+        name = c.value(CaseKey("name"), "")
+        color = c.value(CaseKey("color"), ArrPalette.defaultColor)
+        end = c.optional(CaseKey("end"))
     }
 }
 
 extension Arrangement {
-    enum CodingKeys: String, CodingKey, CaseIterable { case markers, loopFrom, loopTo, loop, grid, snap, hideSteps, ref, showRef }
 
     public init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: CodingKeys.self)
-        markers = c.value(.markers, [ArrMarker]())
-        loopFrom = c.value(.loopFrom, 0)
-        loopTo = c.value(.loopTo, 0)
-        loop = c.value(.loop, false)
-        grid = c.value(.grid, 2)
-        snap = c.value(.snap, true)
-        hideSteps = c.value(.hideSteps, false)
-        ref = c.optional(.ref)
-        showRef = c.value(.showRef, false)
+        let c = try decoder.container(keyedBy: CaseKey.self)
+        markers = c.value(CaseKey("markers"), [ArrMarker]())
+        loopFrom = c.value(CaseKey("loopFrom"), 0)
+        loopTo = c.value(CaseKey("loopTo"), 0)
+        loop = c.value(CaseKey("loop"), false)
+        grid = c.value(CaseKey("grid"), 2)
+        snap = c.value(CaseKey("snap"), true)
+        hideSteps = c.value(CaseKey("hideSteps"), false)
+        ref = c.optional(CaseKey("ref"))
+        showRef = c.value(CaseKey("showRef"), false)
     }
 
     /// После чтения: маркеры по порядку, в пределах; петля и сетка — в пределах.
@@ -272,5 +266,53 @@ extension Project {
             if tracks[t].blocks.contains(where: { $0.pattern == nil }) && tracks[t].ownArrPatterns() { changed = true }
         }
         return changed
+    }
+}
+
+// Запись — как у синтезированной, но без своего перечисления CodingKeys (общий CaseKey; объём сборки, 18.11).
+extension ArrRef {
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CaseKey.self)
+        key = try c.decode(String.self, forKey: CaseKey("key"))
+        name = try c.decode(String.self, forKey: CaseKey("name"))
+        offset = try c.decode(Double.self, forKey: CaseKey("offset"))
+        gain = try c.decode(Double.self, forKey: CaseKey("gain"))
+        bpm = try c.decodeIfPresent(Double.self, forKey: CaseKey("bpm"))
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CaseKey.self)
+        try c.encode(key, forKey: CaseKey("key"))
+        try c.encode(name, forKey: CaseKey("name"))
+        try c.encode(offset, forKey: CaseKey("offset"))
+        try c.encode(gain, forKey: CaseKey("gain"))
+        try c.encodeIfPresent(bpm, forKey: CaseKey("bpm"))
+    }
+}
+
+extension ArrMarker {
+    /// Запись — как прежняя синтезированная, по тем же ключам (общий CaseKey; объём сборки, 18.11).
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CaseKey.self)
+        try c.encode(at, forKey: CaseKey("at"))
+        try c.encode(name, forKey: CaseKey("name"))
+        try c.encode(color, forKey: CaseKey("color"))
+        try c.encodeIfPresent(end, forKey: CaseKey("end"))
+    }
+}
+
+extension Arrangement {
+    /// Запись — как прежняя синтезированная, по тем же ключам (общий CaseKey; объём сборки, 18.11).
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CaseKey.self)
+        try c.encode(markers, forKey: CaseKey("markers"))
+        try c.encode(loopFrom, forKey: CaseKey("loopFrom"))
+        try c.encode(loopTo, forKey: CaseKey("loopTo"))
+        try c.encode(loop, forKey: CaseKey("loop"))
+        try c.encode(grid, forKey: CaseKey("grid"))
+        try c.encode(snap, forKey: CaseKey("snap"))
+        try c.encode(hideSteps, forKey: CaseKey("hideSteps"))
+        try c.encodeIfPresent(ref, forKey: CaseKey("ref"))
+        try c.encode(showRef, forKey: CaseKey("showRef"))
     }
 }

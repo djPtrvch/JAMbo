@@ -108,3 +108,22 @@ public struct KnobDefaults: Codable, Equatable, Sendable {
         }
     }
 }
+
+// Запись — как у синтезированной, но без своего перечисления CodingKeys (общий CaseKey; объём сборки, 18.11).
+extension KnobDefaults {
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CaseKey.self)
+        values = try c.decode([String: Double].self, forKey: CaseKey("values"))
+        eqTrack = try c.decodeIfPresent([EqBand?].self, forKey: CaseKey("eqTrack"))
+        eqMaster = try c.decodeIfPresent([EqBand?].self, forKey: CaseKey("eqMaster"))
+        filterV = try c.decodeIfPresent(Int.self, forKey: CaseKey("filterV"))
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CaseKey.self)
+        try c.encode(values, forKey: CaseKey("values"))
+        try c.encodeIfPresent(eqTrack, forKey: CaseKey("eqTrack"))
+        try c.encodeIfPresent(eqMaster, forKey: CaseKey("eqMaster"))
+        try c.encodeIfPresent(filterV, forKey: CaseKey("filterV"))
+    }
+}

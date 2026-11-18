@@ -46,32 +46,31 @@ public struct LibNode: Codable, Equatable, Sendable {
 
     public var isSystem: Bool { return system ?? false }
 
-    enum CodingKeys: String, CodingKey, CaseIterable { case id, parent, kind, name, key, preset, system, updated, order }
 
     public init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: CodingKeys.self)
-        id = try c.decode(String.self, forKey: .id)
-        parent = try c.decode(String.self, forKey: .parent)
-        kind = try c.decode(LibKind.self, forKey: .kind)
-        name = try c.decode(String.self, forKey: .name)
-        key = try c.decodeIfPresent(String.self, forKey: .key)
-        presetBox = try c.decodeIfPresent(SynthPreset.self, forKey: .preset).map { [$0] } ?? []
-        system = try c.decodeIfPresent(Bool.self, forKey: .system)
-        updated = try c.decode(Double.self, forKey: .updated)
-        order = try c.decodeIfPresent(Double.self, forKey: .order)
+        let c = try decoder.container(keyedBy: CaseKey.self)
+        id = try c.decode(String.self, forKey: CaseKey("id"))
+        parent = try c.decode(String.self, forKey: CaseKey("parent"))
+        kind = try c.decode(LibKind.self, forKey: CaseKey("kind"))
+        name = try c.decode(String.self, forKey: CaseKey("name"))
+        key = try c.decodeIfPresent(String.self, forKey: CaseKey("key"))
+        presetBox = try c.decodeIfPresent(SynthPreset.self, forKey: CaseKey("preset")).map { [$0] } ?? []
+        system = try c.decodeIfPresent(Bool.self, forKey: CaseKey("system"))
+        updated = try c.decode(Double.self, forKey: CaseKey("updated"))
+        order = try c.decodeIfPresent(Double.self, forKey: CaseKey("order"))
     }
 
     public func encode(to encoder: Encoder) throws {
-        var c = encoder.container(keyedBy: CodingKeys.self)
-        try c.encode(id, forKey: .id)
-        try c.encode(parent, forKey: .parent)
-        try c.encode(kind, forKey: .kind)
-        try c.encode(name, forKey: .name)
-        try c.encodeIfPresent(key, forKey: .key)
-        try c.encodeIfPresent(preset, forKey: .preset)
-        try c.encodeIfPresent(system, forKey: .system)
-        try c.encode(updated, forKey: .updated)
-        try c.encodeIfPresent(order, forKey: .order)
+        var c = encoder.container(keyedBy: CaseKey.self)
+        try c.encode(id, forKey: CaseKey("id"))
+        try c.encode(parent, forKey: CaseKey("parent"))
+        try c.encode(kind, forKey: CaseKey("kind"))
+        try c.encode(name, forKey: CaseKey("name"))
+        try c.encodeIfPresent(key, forKey: CaseKey("key"))
+        try c.encodeIfPresent(preset, forKey: CaseKey("preset"))
+        try c.encodeIfPresent(system, forKey: CaseKey("system"))
+        try c.encode(updated, forKey: CaseKey("updated"))
+        try c.encodeIfPresent(order, forKey: CaseKey("order"))
     }
 }
 
@@ -91,12 +90,11 @@ public struct Library: Codable, Equatable, Sendable {
         ensureRecordings()
     }
 
-    enum CodingKeys: String, CodingKey { case nodes, marks }
 
     public init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: CodingKeys.self)
-        nodes = c.value(.nodes, [LibNode]())
-        marks = c.value(.marks, [String: SampleMarks]())
+        let c = try decoder.container(keyedBy: CaseKey.self)
+        nodes = c.value(CaseKey("nodes"), [LibNode]())
+        marks = c.value(CaseKey("marks"), [String: SampleMarks]())
         ensureRecordings()
     }
 
@@ -354,5 +352,14 @@ extension Library {
             return have.id
         }
         return createFolder(Library.recordings, name).id
+    }
+}
+
+extension Library {
+    /// Запись — как прежняя синтезированная, по тем же ключам (общий CaseKey; объём сборки, 18.11).
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CaseKey.self)
+        try c.encode(nodes, forKey: CaseKey("nodes"))
+        try c.encode(marks, forKey: CaseKey("marks"))
     }
 }

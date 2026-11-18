@@ -13,6 +13,18 @@ public struct WarpMark: Codable, Equatable, Sendable {
         self.at = at
         self.beat = beat
     }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CaseKey.self)
+        at = try c.decode(Double.self, forKey: CaseKey("at"))
+        beat = try c.decode(Double.self, forKey: CaseKey("beat"))
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CaseKey.self)
+        try c.encode(at, forKey: CaseKey("at"))
+        try c.encode(beat, forKey: CaseKey("beat"))
+    }
 }
 
 /// Варпинг сэмпла: свой BPM файла (nil — определённый сам) и метки по возрастанию at и beat.
@@ -207,5 +219,22 @@ extension Track {
         let bpm: Double = w.isOff ? WarpMap.bpm(w, detected: detectedBpm) : follow ?? WarpMap.bpm(w, detected: detectedBpm)
         w.marks = WarpMap.auto(onsets: onsets, frames: frames, bpm: bpm, grid: grid)
         putWarp(key, w)
+    }
+}
+
+// Запись — как у синтезированной, но без своего перечисления CodingKeys (общий CaseKey; объём сборки, 18.11).
+extension WarpInfo {
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CaseKey.self)
+        bpm = try c.decodeIfPresent(Double.self, forKey: CaseKey("bpm"))
+        marks = try c.decode([WarpMark].self, forKey: CaseKey("marks"))
+        off = try c.decodeIfPresent(Bool.self, forKey: CaseKey("off"))
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CaseKey.self)
+        try c.encodeIfPresent(bpm, forKey: CaseKey("bpm"))
+        try c.encode(marks, forKey: CaseKey("marks"))
+        try c.encodeIfPresent(off, forKey: CaseKey("off"))
     }
 }

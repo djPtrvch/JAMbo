@@ -22,17 +22,16 @@ public struct MidiSettings: Codable, Equatable, Sendable {
 
     /// Прежний общий вход нот (input, до 8.11) при чтении пропускается: ноты — только у дорожек (TrackMidi), маппинги —
     /// со своего входа (MidiMapping).
-    private enum CodingKeys: String, CodingKey { case feedback, mappings, preset, pressTouch, padThru, padControls }
 
     public init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: CodingKeys.self)
-        feedback = c.optional(.feedback)
-        let maps: [LossyMapping] = c.value(.mappings, [])
+        let c = try decoder.container(keyedBy: CaseKey.self)
+        feedback = c.optional(CaseKey("feedback"))
+        let maps: [LossyMapping] = c.value(CaseKey("mappings"), [])
         mappings = maps.compactMap { $0.value }
-        preset = c.value(.preset, "")
-        pressTouch = c.value(.pressTouch, true)
-        padThru = c.value(.padThru, 1)
-        padControls = c.value(.padControls, false)
+        preset = c.value(CaseKey("preset"), "")
+        pressTouch = c.value(CaseKey("pressTouch"), true)
+        padThru = c.value(CaseKey("padThru"), 1)
+        padControls = c.value(CaseKey("padControls"), false)
     }
 
     /// Касание клавиши для ноты с MIDI на дорожке track (id клавиши в модели): отрицательные, не пересекаются
@@ -44,5 +43,18 @@ public struct MidiSettings: Codable, Equatable, Sendable {
     /// Сила ноты 0…1 (с VELOCITY; без него — полная).
     public static func velocity(_ v: Int, sensitive: Bool) -> Double {
         return sensitive ? Double(max(1, min(127, v))) / 127 : 1
+    }
+}
+
+extension MidiSettings {
+    /// Запись — как прежняя синтезированная, по тем же ключам (общий CaseKey; объём сборки, 18.11).
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CaseKey.self)
+        try c.encodeIfPresent(feedback, forKey: CaseKey("feedback"))
+        try c.encode(mappings, forKey: CaseKey("mappings"))
+        try c.encode(preset, forKey: CaseKey("preset"))
+        try c.encode(pressTouch, forKey: CaseKey("pressTouch"))
+        try c.encode(padThru, forKey: CaseKey("padThru"))
+        try c.encode(padControls, forKey: CaseKey("padControls"))
     }
 }
