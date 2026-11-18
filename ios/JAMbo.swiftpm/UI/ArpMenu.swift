@@ -2,10 +2,9 @@ import SwiftUI
 
 /// Раздел ARP в меню под CHORD (не на ударной дорожке): GATE; OCTAVES, RATE и LATCH — в окне CHORD в режиме ARP.
 /// Настройки дорожки — в проекте, без записи UNDO (как ход игры).
-struct ArpMenuSection: View {
-    let model: AppModel
-
-    var body: some View {
+enum ArpMenuSection {
+    @ViewBuilder
+    static func view(_ model: AppModel) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             MenuHead(title: "ARP")
             ArpGateSlider(model: model)

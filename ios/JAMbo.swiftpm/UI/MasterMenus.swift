@@ -17,7 +17,7 @@ struct MasterMenuView: View {
     private var content: AnyView {
         switch state.kind {
         case .modules:
-            return AnyView(MasterModulesMenu(model: model)
+            return AnyView(MasterModulesMenu.view(model)
                 .menuPanel()
                 .frame(width: 150)
                 .offset(x: state.anchor.minX, y: state.anchor.maxY + 6))
@@ -42,10 +42,8 @@ struct MasterMenuView: View {
     }
 }
 
-struct MasterModulesMenu: View {
-    let model: AppModel
-
-    var body: some View {
+enum MasterModulesMenu {
+    static func view(_ model: AppModel) -> some View {
         let cur: Int = model.masterWin ?? -1
         return VStack(spacing: 6) {
             ForEach(0..<4, id: \.self) { m in

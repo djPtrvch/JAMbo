@@ -154,7 +154,7 @@ struct PianoMenu: View {
                      : "The CHORD button plays chords.")
                     .font(.system(size: 11))
                     .foregroundStyle(theme.dim)
-                ArpMenuSection(model: model)
+                ArpMenuSection.view(model)
             }
         }
     }

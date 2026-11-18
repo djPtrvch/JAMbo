@@ -44,17 +44,17 @@ struct SettingsPage: View {
     private var section: AnyView {
         switch model.settingsTab {
         case .engine: return AnyView(EngineSettings(model: model))
-        case .record: return AnyView(RecordSettingsView(model: model))
-        case .sampler: return AnyView(SamplerSettings(model: model))
-        case .sidechain: return AnyView(SidechainSettings(model: model))
-        case .output: return AnyView(OutputSettings(model: model))
-        case .appearance: return AnyView(AppearanceSettings(model: model))
-        case .mix: return AnyView(MixSettings(model: model))
-        case .morph: return AnyView(MorphSettings(model: model))
+        case .record: return AnyView(RecordSettingsView.view(model))
+        case .sampler: return AnyView(SamplerSettings.view(model))
+        case .sidechain: return AnyView(SidechainSettings.view(model))
+        case .output: return AnyView(OutputSettings.view(model))
+        case .appearance: return AnyView(AppearanceSettings.view(model))
+        case .mix: return AnyView(MixSettings.view(model))
+        case .morph: return AnyView(MorphSettings.view(model))
         case .random: return AnyView(RandomSettings(model: model))
-        case .level: return AnyView(LevelSettings(model: model))
-        case .defaults: return AnyView(DefaultsSettings(model: model))
-        case .arrange: return AnyView(ArrangeSettings(model: model))
+        case .level: return AnyView(LevelSettings.view(model))
+        case .defaults: return AnyView(DefaultsSettings.view(model))
+        case .arrange: return AnyView(ArrangeSettings.view(model))
         }
     }
 }
@@ -62,10 +62,8 @@ struct SettingsPage: View {
 /// ARRANGE (S15): TRACKS — FIX (по умолчанию: кнопки EXPANDED / COMPACT под измерителем) или SCALE (масштаб строк
 /// двумя пальцами по вертикали); FOLLOW PLAYHEAD; ROW REPEATS — клипы строки
 /// в аранжировку на длину × повторы строки. Шаг сетки — в меню кнопки сетки аранжировщика.
-struct ArrangeSettings: View {
-    let model: AppModel
-
-    var body: some View {
+enum ArrangeSettings {
+    static func view(_ model: AppModel) -> some View {
         let m: AppModel = model
         let scale: Bool = m.settings.arrangeScale
         return FormRows(rows: [
@@ -160,10 +158,8 @@ struct MetronomeSlider: View {
 }
 
 /// RECORD: QUANTIZE, ARRANGE REC START, DRUM STEP PAINT (17.11: палец по шагам на ударной — триги; иначе длинная нота), METRONOME (STEP SWIPE для всех дорожек убран 7.11; OVERDUB — в меню клавиатуры; AUTOMATION RECORDING — с автоматизацией).
-struct RecordSettingsView: View {
-    let model: AppModel
-
-    var body: some View {
+enum RecordSettingsView {
+    static func view(_ model: AppModel) -> some View {
         let m: AppModel = model
         return FormRows(rows: [
             .toggle("QUANTIZE", m.settings.record.quantize) { m.setQuantize($0) },
@@ -182,10 +178,8 @@ struct RecordSettingsView: View {
 
 /// SAMPLER: STRETCH — алгоритм таймстретча RATE (NORMAL по умолчанию, BEAT); SLICE NOTES — ноты маркеров нарезки по
 /// хроматической клавиатуре или по гамме; PITCH SHIFT и START / END SHIFT (9.11) — TAP или HOLD; CLEAR SAMPLE LOCKS (S11b).
-struct SamplerSettings: View {
-    let model: AppModel
-
-    var body: some View {
+enum SamplerSettings {
+    static func view(_ model: AppModel) -> some View {
         let m: AppModel = model
         let st: AppSettings = m.settings
         return FormRows(rows: [
@@ -215,10 +209,8 @@ struct SamplerSettings: View {
 
 /// SIDECHAIN: приглушаются ли посылы Reverb, Delay, Drive тем же Sidechain, что и выход дорожки. MUTE TAILS убран
 /// (решение пользователя): хвосты эффектов заглушённой дорожки всегда доигрывают.
-struct SidechainSettings: View {
-    let model: AppModel
-
-    var body: some View {
+enum SidechainSettings {
+    static func view(_ model: AppModel) -> some View {
         let m: AppModel = model
         return FormRows(rows: [
             .label("DUCK SENDS"),
@@ -231,10 +223,8 @@ struct SidechainSettings: View {
 }
 
 /// OUTPUT: системный выбор выхода (как в Пункте управления) и текущий выход.
-struct OutputSettings: View {
-    let model: AppModel
-
-    var body: some View {
+enum OutputSettings {
+    static func view(_ model: AppModel) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             FieldLabel(title: "OUTPUT")
             HStack(spacing: 8) {
@@ -247,7 +237,7 @@ struct OutputSettings: View {
                 }
             }
             SettingsNote(text: "Tap the AirPlay icon to choose where the sound goes: the iPad speakers, headphones, Bluetooth, AirPlay or a USB audio interface. The same choice is in Control Center.")
-            MonitorSettingsRows(model: model)
+            MonitorSettingsRows.view(model)
         }
     }
 
@@ -261,10 +251,8 @@ struct OutputSettings: View {
 
 /// OUTPUT → MONITORING (Headphone Monitor): пути референса (через модули мастера, через монитор-цепочку), подгонка
 /// громкости референса к миксу и ручная подстройка ±12 dB (шаг 0,5 dB). Хранится в настройках монитора (UserDefaults).
-struct MonitorSettingsRows: View {
-    let model: AppModel
-
-    var body: some View {
+enum MonitorSettingsRows {
+    static func view(_ model: AppModel) -> some View {
         let m: AppModel = model
         let s: MonitorSettings = m.monitor
         return FormRows(rows: [
@@ -289,10 +277,8 @@ struct MonitorSettingsRows: View {
 /// APPEARANCE: тема SYSTEM (как на iPad), LIGHT, DARK; MASTER FX DISPLAY SCALE — масштаб дисплеев окон модулей
 /// мастера (48, 32, 16 dB); KNOB GROUPS IN COLUMNS — группы ручек столбцами (16.11);
 /// FX ANIMATION — картинки FX в окне сэмпла.
-struct AppearanceSettings: View {
-    let model: AppModel
-
-    var body: some View {
+enum AppearanceSettings {
+    static func view(_ model: AppModel) -> some View {
         let m: AppModel = model
         let themes: [MenuChoice] = Appearance.allCases.map { (a: Appearance) -> MenuChoice in
             MenuChoice(title: a.rawValue, current: m.appearance == a) { m.setAppearance(a) }
@@ -316,10 +302,8 @@ struct AppearanceSettings: View {
 }
 
 /// MIX: переходы между проектами (действуют с переходами MIX, S10).
-struct MixSettings: View {
-    let model: AppModel
-
-    var body: some View {
+enum MixSettings {
+    static func view(_ model: AppModel) -> some View {
         let m: AppModel = model
         return FormRows(rows: [
             .toggle("CHANGE KEY", m.settings.mixKey) { m.setMixKey($0) },
@@ -331,10 +315,8 @@ struct MixSettings: View {
 }
 
 /// MORPH: MODE — TAP или HOLD (выбранная дорожка), SHIFT + MORPH — все дорожки; возврат после выключения режима.
-struct MorphSettings: View {
-    let model: AppModel
-
-    var body: some View {
+enum MorphSettings {
+    static func view(_ model: AppModel) -> some View {
         let m: AppModel = model
         let ret: [MenuChoice] = (0..<MorphReturn.names.count).map { (k: Int) -> MenuChoice in
             MenuChoice(title: MorphReturn.names[k], current: m.settings.morphReturn == k) { m.setMorphReturn(k) }
@@ -382,10 +364,8 @@ struct RandomSettings: View {
 }
 
 /// LEVEL: регулятор громкости справа у дорожки — ABSOLUTE или RELATIVE.
-struct LevelSettings: View {
-    let model: AppModel
-
-    var body: some View {
+enum LevelSettings {
+    static func view(_ model: AppModel) -> some View {
         let m: AppModel = model
         let rel: Bool = m.settings.levelRelative
         return FormRows(rows: [
@@ -398,10 +378,8 @@ struct LevelSettings: View {
 }
 
 /// DEFAULTS: свои значения ручек, модулей мастера и EQ по умолчанию (KnobDefaults) — как запомнить и сбросить; забыть все.
-struct DefaultsSettings: View {
-    let model: AppModel
-
-    var body: some View {
+enum DefaultsSettings {
+    static func view(_ model: AppModel) -> some View {
         let m: AppModel = model
         let n: Int = m.knobDefaultsCount
         return FormRows(rows: [

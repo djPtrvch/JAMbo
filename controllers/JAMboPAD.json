@@ -2691,6 +2691,6 @@
     }
   ],
   "name" : "JAMboPAD",
-  "port" : "",
-  "version" : 1
+  "on" : true,
+  "port" : ""
 }

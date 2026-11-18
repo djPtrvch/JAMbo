@@ -16,7 +16,7 @@ struct SyncMenuPage: View {
                 VStack(alignment: .leading, spacing: 8) {
                     general
                     Divider().overlay(theme.line).padding(.vertical, 6)
-                    SyncClockSection(model: model)
+                    SyncClockSection.view(model)
                 }
                 .padding(.trailing, 6)
             }
@@ -41,10 +41,8 @@ struct SyncMenuPage: View {
 
 /// MIDI CLOCK: вкл./выкл., SEND и RECEIVE (по отдельности или вместе, 8.11), выходы (SEND, несколько) и вход
 /// (RECEIVE), SYNC START/STOP, MIDI OFFSET.
-struct SyncClockSection: View {
-    let model: AppModel
-
-    var body: some View {
+enum SyncClockSection {
+    static func view(_ model: AppModel) -> some View {
         let m: AppModel = model
         let s: SyncSettings = m.settings.sync
         var rows: [FormRow] = [
@@ -55,7 +53,7 @@ struct SyncClockSection: View {
         if s.send {
             rows.append(.label("CLOCK OUTPUTS"))
             if m.midi.outputs.isEmpty { rows.append(.note("No MIDI outputs connected.")) }
-            rows.append(.view(AnyView(ClockOutputList(model: m))))
+            rows.append(.view(AnyView(ClockOutputList.view(m))))
         }
         rows.append(.toggle("RECEIVE CLOCK", s.receive) { on in m.setSync { $0.receive = on } })
         if s.receive {
@@ -163,10 +161,8 @@ struct PressStyle: ButtonStyle {
 }
 
 /// CLOCK OUTPUTS: ALL OUTPUTS или любой набор выходов (тап — добавить или убрать; убран последний — снова все).
-struct ClockOutputList: View {
-    let model: AppModel
-
-    var body: some View {
+enum ClockOutputList {
+    static func view(_ model: AppModel) -> some View {
         let m: AppModel = model
         let s: SyncSettings = m.settings.sync
         let gone: [Int32] = s.clockOuts.filter { id in !m.midi.outputs.contains(where: { $0.id == id }) }

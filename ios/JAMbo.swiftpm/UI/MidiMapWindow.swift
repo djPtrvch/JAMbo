@@ -16,7 +16,7 @@ struct MidiMapWindow: View {
         return VStack(spacing: 0) {
             header
             Divider().overlay(theme.line)
-            MenuScroll { MidiMapBody(model: model).padding(12) }
+            MenuScroll { MidiMapBody.view(model).padding(12) }
         }
         .frame(width: MidiMapWindow.width, height: max(160, min(520, screen.height - p.y - 16)))
         .framed(theme.panel, line: theme.line)
@@ -67,10 +67,9 @@ struct MidiMapWindow: View {
 }
 
 /// Содержимое окна: главная страница или выбор.
-struct MidiMapBody: View {
-    let model: AppModel
-
-    var body: some View {
+enum MidiMapBody {
+    @ViewBuilder
+    static func view(_ model: AppModel) -> some View {
         if let m = model.mapCurrent {
             switch model.midiLearn.mapPage {
             case .main: MidiMapMain(model: model, m: m)

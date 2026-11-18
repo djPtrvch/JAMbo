@@ -159,10 +159,8 @@ struct RollBar: View {
 }
 
 /// Меню GRID пианоролла: шаг сетки (настройка, общая для проектов); выбор закрывает меню.
-struct RollMenu: View {
-    let model: AppModel
-
-    var body: some View {
+enum RollMenu {
+    static func view(_ model: AppModel) -> some View {
         let grid: Int = model.settings.rollGrid
         // Меню короткое — без прокрутки (высота по содержимому).
         return VStack(alignment: .leading, spacing: 6) {

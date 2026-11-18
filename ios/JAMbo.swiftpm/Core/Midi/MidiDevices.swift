@@ -37,6 +37,7 @@ public struct MidiDevice: Codable, Equatable, Sendable {
         try c.encode(port, forKey: CaseKey("port"))
         try c.encode(on, forKey: CaseKey("on"))
         try c.encode(mappings, forKey: CaseKey("mappings"))
+        try c.encode(MidiDevice.fileTag, forKey: CaseKey("jambo"))
     }
 
     mutating func tag() {
@@ -165,56 +166,26 @@ extension MidiSettings {
     }
 }
 
-// Файл устройства (EXPORT / IMPORT в MIDI → DEVICES, 18.11): JSON {"jambo":"midi-device","version":1,"name","port",
-// "mappings"}; маппинги — в том же виде, что в настройках. Включено ли — не пишется.
+// Файл устройства (EXPORT / IMPORT в MIDI → DEVICES, 18.11): та же запись, что в настройках (name, port, on,
+// mappings), и метка "jambo": "midi-device" — по ней файл узнаётся при IMPORT.
 extension MidiDevice {
     public static let fileTag = "midi-device"
 
     public func fileData() -> Data? {
         let enc = JSONEncoder()
         enc.outputFormatting = [.prettyPrinted, .sortedKeys]
-        return try? enc.encode(MidiDeviceFile(name: name, port: port, mappings: mappings))
+        return try? enc.encode(self)
     }
 
-    /// Разбор файла; не наш или без имени — nil.
+    /// Разбор файла; без метки или без имени — nil.
     public static func read(_ data: Data) -> MidiDevice? {
-        guard let f = try? JSONDecoder().decode(MidiDeviceFile.self, from: data), f.tag == fileTag else { return nil }
-        let n: String = String(f.name.trimmingCharacters(in: .whitespaces).prefix(MidiSettings.nameMax))
-        if n.isEmpty { return nil }
-        return MidiDevice(name: n, port: f.port, on: true, mappings: f.mappings)
-    }
-}
-
-struct MidiDeviceFile: Codable {
-    var tag: String = MidiDevice.fileTag
-    var version: Int = 1
-    var name: String
-    var port: String
-    var mappings: [MidiMapping]
-
-    init(name: String, port: String, mappings: [MidiMapping]) {
-        self.name = name
-        self.port = port
-        self.mappings = mappings
-    }
-
-    init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: CaseKey.self)
-        tag = try c.decode(String.self, forKey: CaseKey("jambo"))
-        version = c.value(CaseKey("version"), 1)
-        name = try c.decode(String.self, forKey: CaseKey("name"))
-        port = c.value(CaseKey("port"), "")
-        let maps: [LossyMapping] = c.value(CaseKey("mappings"), [])
-        mappings = maps.compactMap { $0.value }
-    }
-
-    func encode(to encoder: Encoder) throws {
-        var c = encoder.container(keyedBy: CaseKey.self)
-        try c.encode(tag, forKey: CaseKey("jambo"))
-        try c.encode(version, forKey: CaseKey("version"))
-        try c.encode(name, forKey: CaseKey("name"))
-        try c.encode(port, forKey: CaseKey("port"))
-        try c.encode(mappings, forKey: CaseKey("mappings"))
+        let obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+        guard obj?["jambo"] as? String == fileTag, var d = try? JSONDecoder().decode(MidiDevice.self, from: data) else { return nil }
+        d.name = String(d.name.trimmingCharacters(in: .whitespaces).prefix(MidiSettings.nameMax))
+        if d.name.isEmpty { return nil }
+        d.on = true
+        d.tag()
+        return d
     }
 }
 

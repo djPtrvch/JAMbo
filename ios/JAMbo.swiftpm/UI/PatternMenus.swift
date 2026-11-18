@@ -18,7 +18,7 @@ struct PatternMenus: View {
             }
             if model.gridMenuOpen {
                 dismiss { model.gridMenuOpen = false }
-                GridMenu(model: model)
+                GridMenu.view(model)
                     .frame(width: gridMenuWidth, height: geometry.size.height)
                     .offset(x: gridMenuX, y: 0)
             }
@@ -365,10 +365,8 @@ struct RowMenu: View {
 }
 
 /// Бутерброд сетки: строка старта, что в конце строк, что делает «+», режим стрелок.
-struct GridMenu: View {
-    let model: AppModel
-
-    var body: some View {
+enum GridMenu {
+    static func view(_ model: AppModel) -> some View {
         let p: Project = model.project
         let start: Int = min(p.arrStart, p.visibleRows - 1)
         return MenuScroll {

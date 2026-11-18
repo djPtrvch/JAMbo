@@ -36,7 +36,7 @@ struct RollWindow: View {
         Color.black.opacity(0.001)
             .frame(width: size.width, height: size.height)
             .onTapGesture { model.rollMenuOpen = false }
-        RollMenu(model: model)
+        RollMenu.view(model)
             .frame(width: w)
             .fixedSize(horizontal: false, vertical: true)
             .offset(x: (size.width - w) / 2, y: top)
